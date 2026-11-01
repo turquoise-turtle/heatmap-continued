@@ -71,6 +71,10 @@ heatmap_colors: Dict[str, Dict[str, str]] = {
     "ice": {"label": "Ice"},
     "magenta": {"label": "Magenta"},
     "flame": {"label": "Flame"},
+    "grape": {"label": "Grape"},
+    "teal": {"label": "Teal"},
+    "slate": {"label": "Slate"},
+    "mocha": {"label": "Mocha"},
 }
 
 heatmap_modes: Dict[str, Dict[str, Any]] = {

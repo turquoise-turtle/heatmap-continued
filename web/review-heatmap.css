@@ -212,6 +212,10 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 .rh-theme-ice     {--rh-c1:#a8d5f6;--rh-c2:#95c8f3;--rh-c3:#82bbf0;--rh-c4:#70afee;--rh-c5:#5da2eb;--rh-c6:#4a95e8;--rh-c7:#3889e6;--rh-c8:#257ce3;--rh-c9:#126fe0;--rh-c10:#0063de}
 .rh-theme-magenta {--rh-c1:#fde0dd;--rh-c2:#fcc5c0;--rh-c3:#fa9fb5;--rh-c4:#f768a1;--rh-c5:#ea4e9c;--rh-c6:#dd3497;--rh-c7:#ae017e;--rh-c8:#7a0177;--rh-c9:#610070;--rh-c10:#49006a}
 .rh-theme-flame   {--rh-c1:#ffeda0;--rh-c2:#fed976;--rh-c3:#feb24c;--rh-c4:#fd8d3c;--rh-c5:#fc6d33;--rh-c6:#fc4e2a;--rh-c7:#e31a1c;--rh-c8:#d00d21;--rh-c9:#bd0026;--rh-c10:#800026}
+.rh-theme-grape   {--rh-c1:#ead9fb;--rh-c2:#ddc7f6;--rh-c3:#cfb4f1;--rh-c4:#c09deb;--rh-c5:#ae80e6;--rh-c6:#9d68da;--rh-c7:#8d5cc5;--rh-c8:#794dad;--rh-c9:#613990;--rh-c10:#3c1569}
+.rh-theme-teal    {--rh-c1:#c8f0e8;--rh-c2:#b4e2d9;--rh-c3:#9cd2ca;--rh-c4:#7ec0b8;--rh-c5:#52aca4;--rh-c6:#289a91;--rh-c7:#238a82;--rh-c8:#1d7770;--rh-c9:#15605a;--rh-c10:#0a3e3a}
+.rh-theme-slate   {--rh-c1:#dbe4ee;--rh-c2:#c9d4e0;--rh-c3:#b4c1d1;--rh-c4:#9cacc0;--rh-c5:#7e94ad;--rh-c6:#667f9c;--rh-c7:#59718c;--rh-c8:#4b6079;--rh-c9:#374a61;--rh-c10:#15293f}
+.rh-theme-mocha   {--rh-c1:#f2e4ff;--rh-c2:#ead8fd;--rh-c3:#e2cbfb;--rh-c4:#d9befa;--rh-c5:#d0aef8;--rh-c6:#c39ff1;--rh-c7:#b38ee4;--rh-c8:#9f7bd6;--rh-c9:#8962c6;--rh-c10:#6c3fb5}
 
 /* Applied levels: light mode uses the palette as-is. */
 .rh-container {

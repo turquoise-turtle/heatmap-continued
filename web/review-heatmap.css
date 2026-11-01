@@ -4,6 +4,7 @@ This file is part of the Review Heatmap add-on for Anki
 Custom Heatmap CSS
 
 Copyright: (c) 2016-2022 Glutanimate <https://glutanimate.com/>
+Modified version (2026): palettes refactored onto CSS custom properties
 License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 */
 
@@ -11,15 +12,15 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 "rh-platform-mac": Set when run on macOS
 "rh-platform-win": Set when run on Windows
 "rh-platform-lin": Set when run on Linux
-"rh-theme-olive", "rh-theme-lime", "rh-theme-ice",
-    "rh-theme-magenta", "rh-theme-flame": Set when respective theme active
+"rh-theme-<name>": Set when the respective colour palette is active
+"rh-dark-inverted" / "rh-dark-same": Dark-mode palette direction
 "rh-mode-year": Set when calendar set to year mode
 "rh-mode-months": Set when calendar set to months mode
 "rh-view-deckbrowser", "rh-view-overview", "rh-view-stats": Set when drawn
     on respective view
 "rh-disable-stats": Set when streak stats disabled
 "rh-disable-heatmap": Set when heatmap disabled
-"night_mode": Set when night mode active (provided by Night Mode add-on)
+"night_mode" / "nightMode" (body) or "night-mode" (html): Set by Anki in dark mode
 */
 
 /* General layout */
@@ -56,7 +57,7 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 .cal-heatmap-container .graph-rect {
     fill: #eaeaea;
 }
-.night_mode .cal-heatmap-container .graph-rect {
+:is(.night_mode, .night-mode) .cal-heatmap-container .graph-rect {
     fill: #222222;
 }
 
@@ -121,13 +122,13 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 .hm-btn:active {
     background: #000;
 }
-.night_mode .hm-btn {
+:is(.night_mode, .night-mode) .hm-btn {
     background-color: #313d45;
 }
-.night_mode .hm-btn:hover {
+:is(.night_mode, .night-mode) .hm-btn:hover {
     background-color: #374f5b;
 }
-.night_mode .hm-btn:active {
+:is(.night_mode, .night-mode) .hm-btn:active {
     background-color: #433376;
 }
 
@@ -146,30 +147,6 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
     width: 10px;
 }
 
-/* Heatmap activity type widget */
-/* ################################################################### */
-.hm-sel {
-    display: inline-block;
-    height: 100%;
-    padding: 4px 8px;
-    font-size: 80%;
-    cursor: pointer;
-    color: #808080;
-    border-radius: 3px;
-    user-select: none;
-    border: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    background: url(qrc:/review_heatmap/icons/down.svg) 96% / 10% no-repeat #e6e6e6;
-}
-select.hm-sel:hover {
-    background: url(qrc:/review_heatmap/icons/down.svg) 96% / 10% no-repeat #bfbfbf;
-}
-select.hm-sel:active, select.hm-sel:focus {
-    background: url(qrc:/review_heatmap/icons/down.svg) 96% / 10% no-repeat #e6e6e6;
-}
-
 /* Heatmap links */
 /* ################################################################### */
 
@@ -182,7 +159,7 @@ select.hm-sel:active, select.hm-sel:focus {
      text-decoration:underline;
 }
 
-.night_mode .linkspan {
+:is(.night_mode, .night-mode) .linkspan {
     color: white;
 }
 
@@ -199,19 +176,11 @@ select.hm-sel:active, select.hm-sel:focus {
     color: #E6E6E6;
 }
 
-
-
-
-
-/* Color themes */
+/* Colour palettes */
 /* ################################################################### */
 
-
-/* FORECAST RECT COLORS */
-/*
-- same for every theme 
-- reverse order because of negative value workaround 
-*/
+/* FORECAST COLOURS (same for every palette; reversed because of the negative
+   value workaround) */
 .cal-heatmap-container .q1{fill: #525252}
 .cal-heatmap-container .q2{fill: #616161}
 .cal-heatmap-container .q3{fill: #707070}
@@ -223,248 +192,63 @@ select.hm-sel:active, select.hm-sel:focus {
 .cal-heatmap-container .q9{fill: #CACACA}
 .cal-heatmap-container .q10{fill: #D9D9D9}
 
-.night_mode .cal-heatmap-container .q1{fill: #5d5f5f}
-.night_mode .cal-heatmap-container .q2{fill: #585a5a}
-.night_mode .cal-heatmap-container .q3{fill: #535555}
-.night_mode .cal-heatmap-container .q4{fill: #4e5050}
-.night_mode .cal-heatmap-container .q5{fill: #494b4b}
-.night_mode .cal-heatmap-container .q6{fill: #444646}
-.night_mode .cal-heatmap-container .q7{fill: #3f4141}
-.night_mode .cal-heatmap-container .q8{fill: #3a3c3c}
-.night_mode .cal-heatmap-container .q9{fill: #353737}
-.night_mode .cal-heatmap-container .q10{fill: #313232}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q1{fill: #5d5f5f}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q2{fill: #585a5a}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q3{fill: #535555}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q4{fill: #4e5050}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q5{fill: #494b4b}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q6{fill: #444646}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q7{fill: #3f4141}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q8{fill: #3a3c3c}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q9{fill: #353737}
+:is(.night_mode, .night-mode) .cal-heatmap-container .q10{fill: #313232}
 
-/* REVIEW HISTORY COLORS */
-/*
-- different between each theme
-*/
+/* REVIEW HISTORY COLOURS
+   Each palette defines ten steps from light (--rh-c1, few reviews) to dark
+   (--rh-c10, many reviews). Add a palette here and in config.py. */
 
-/* olive */
-.rh-theme-olive .cal-heatmap-container .q11{fill: #dae289}
-.rh-theme-olive .cal-heatmap-container .q12{fill: #bbd179}
-.rh-theme-olive .cal-heatmap-container .q13{fill: #9cc069}
-.rh-theme-olive .cal-heatmap-container .q14{fill: #8ab45d}
-.rh-theme-olive .cal-heatmap-container .q15{fill: #78a851}
-.rh-theme-olive .cal-heatmap-container .q16{fill: #669d45}
-.rh-theme-olive .cal-heatmap-container .q17{fill: #648b3f}
-.rh-theme-olive .cal-heatmap-container .q18{fill: #637939}
-.rh-theme-olive .cal-heatmap-container .q19{fill: #4f6e30}
-.rh-theme-olive .cal-heatmap-container .q20{fill: #3b6427}
+.rh-theme-lime    {--rh-c1:#d6e685;--rh-c2:#bddb7a;--rh-c3:#a4d06f;--rh-c4:#8cc665;--rh-c5:#74ba58;--rh-c6:#5cae4c;--rh-c7:#44a340;--rh-c8:#378f36;--rh-c9:#2a7b2c;--rh-c10:#1e6823}
+.rh-theme-olive   {--rh-c1:#dae289;--rh-c2:#bbd179;--rh-c3:#9cc069;--rh-c4:#8ab45d;--rh-c5:#78a851;--rh-c6:#669d45;--rh-c7:#648b3f;--rh-c8:#637939;--rh-c9:#4f6e30;--rh-c10:#3b6427}
+.rh-theme-ice     {--rh-c1:#a8d5f6;--rh-c2:#95c8f3;--rh-c3:#82bbf0;--rh-c4:#70afee;--rh-c5:#5da2eb;--rh-c6:#4a95e8;--rh-c7:#3889e6;--rh-c8:#257ce3;--rh-c9:#126fe0;--rh-c10:#0063de}
+.rh-theme-magenta {--rh-c1:#fde0dd;--rh-c2:#fcc5c0;--rh-c3:#fa9fb5;--rh-c4:#f768a1;--rh-c5:#ea4e9c;--rh-c6:#dd3497;--rh-c7:#ae017e;--rh-c8:#7a0177;--rh-c9:#610070;--rh-c10:#49006a}
+.rh-theme-flame   {--rh-c1:#ffeda0;--rh-c2:#fed976;--rh-c3:#feb24c;--rh-c4:#fd8d3c;--rh-c5:#fc6d33;--rh-c6:#fc4e2a;--rh-c7:#e31a1c;--rh-c8:#d00d21;--rh-c9:#bd0026;--rh-c10:#800026}
 
-.rh-theme-olive .rh-col11{color: #dae289}
-.rh-theme-olive .rh-col12{color: #bbd179}
-.rh-theme-olive .rh-col13{color: #9cc069}
-.rh-theme-olive .rh-col14{color: #8ab45d}
-.rh-theme-olive .rh-col15{color: #78a851}
-.rh-theme-olive .rh-col16{color: #669d45}
-.rh-theme-olive .rh-col17{color: #648b3f}
-.rh-theme-olive .rh-col18{color: #637939}
-.rh-theme-olive .rh-col19{color: #4f6e30}
-.rh-theme-olive .rh-col20{color: #3b6427}
+/* Applied levels: light mode uses the palette as-is. */
+.rh-container {
+    --rh-l1: var(--rh-c1); --rh-l2: var(--rh-c2); --rh-l3: var(--rh-c3);
+    --rh-l4: var(--rh-c4); --rh-l5: var(--rh-c5); --rh-l6: var(--rh-c6);
+    --rh-l7: var(--rh-c7); --rh-l8: var(--rh-c8); --rh-l9: var(--rh-c9);
+    --rh-l10: var(--rh-c10);
+}
 
-.night_mode .rh-theme-olive .cal-heatmap-container .q11{fill: #3b6427}
-.night_mode .rh-theme-olive .cal-heatmap-container .q12{fill: #4f6e30}
-.night_mode .rh-theme-olive .cal-heatmap-container .q13{fill: #637939}
-.night_mode .rh-theme-olive .cal-heatmap-container .q14{fill: #648b3f}
-.night_mode .rh-theme-olive .cal-heatmap-container .q15{fill: #669d45}
-.night_mode .rh-theme-olive .cal-heatmap-container .q16{fill: #78a851}
-.night_mode .rh-theme-olive .cal-heatmap-container .q17{fill: #8ab45d}
-.night_mode .rh-theme-olive .cal-heatmap-container .q18{fill: #9cc069}
-.night_mode .rh-theme-olive .cal-heatmap-container .q19{fill: #bbd179}
-.night_mode .rh-theme-olive .cal-heatmap-container .q20{fill: #dae289}
+/* Dark mode, "inverted" setting: lighter means more reviews (the behaviour of
+   earlier versions). The "same" setting keeps the light-mode direction. */
+:is(.night_mode, .night-mode) .rh-container.rh-dark-inverted {
+    --rh-l1: var(--rh-c10); --rh-l2: var(--rh-c9); --rh-l3: var(--rh-c8);
+    --rh-l4: var(--rh-c7); --rh-l5: var(--rh-c6); --rh-l6: var(--rh-c5);
+    --rh-l7: var(--rh-c4); --rh-l8: var(--rh-c3); --rh-l9: var(--rh-c2);
+    --rh-l10: var(--rh-c1);
+}
 
-.night_mode .rh-theme-olive .rh-col11{color: #3b6427}
-.night_mode .rh-theme-olive .rh-col12{color: #4f6e30}
-.night_mode .rh-theme-olive .rh-col13{color: #637939}
-.night_mode .rh-theme-olive .rh-col14{color: #648b3f}
-.night_mode .rh-theme-olive .rh-col15{color: #669d45}
-.night_mode .rh-theme-olive .rh-col16{color: #78a851}
-.night_mode .rh-theme-olive .rh-col17{color: #8ab45d}
-.night_mode .rh-theme-olive .rh-col18{color: #9cc069}
-.night_mode .rh-theme-olive .rh-col19{color: #bbd179}
-.night_mode .rh-theme-olive .rh-col20{color: #dae289}
+.rh-container .cal-heatmap-container .q11{fill: var(--rh-l1)}
+.rh-container .cal-heatmap-container .q12{fill: var(--rh-l2)}
+.rh-container .cal-heatmap-container .q13{fill: var(--rh-l3)}
+.rh-container .cal-heatmap-container .q14{fill: var(--rh-l4)}
+.rh-container .cal-heatmap-container .q15{fill: var(--rh-l5)}
+.rh-container .cal-heatmap-container .q16{fill: var(--rh-l6)}
+.rh-container .cal-heatmap-container .q17{fill: var(--rh-l7)}
+.rh-container .cal-heatmap-container .q18{fill: var(--rh-l8)}
+.rh-container .cal-heatmap-container .q19{fill: var(--rh-l9)}
+.rh-container .cal-heatmap-container .q20{fill: var(--rh-l10)}
 
-/* lime */
-.rh-theme-lime .cal-heatmap-container .q11{fill: #d6e685}
-.rh-theme-lime .cal-heatmap-container .q12{fill: #bddb7a}
-.rh-theme-lime .cal-heatmap-container .q13{fill: #a4d06f}
-.rh-theme-lime .cal-heatmap-container .q14{fill: #8cc665}
-.rh-theme-lime .cal-heatmap-container .q15{fill: #74ba58}
-.rh-theme-lime .cal-heatmap-container .q16{fill: #5cae4c}
-.rh-theme-lime .cal-heatmap-container .q17{fill: #44a340}
-.rh-theme-lime .cal-heatmap-container .q18{fill: #378f36}
-.rh-theme-lime .cal-heatmap-container .q19{fill: #2a7b2c}
-.rh-theme-lime .cal-heatmap-container .q20{fill: #1e6823}
+.rh-container .rh-col11{color: var(--rh-l1)}
+.rh-container .rh-col12{color: var(--rh-l2)}
+.rh-container .rh-col13{color: var(--rh-l3)}
+.rh-container .rh-col14{color: var(--rh-l4)}
+.rh-container .rh-col15{color: var(--rh-l5)}
+.rh-container .rh-col16{color: var(--rh-l6)}
+.rh-container .rh-col17{color: var(--rh-l7)}
+.rh-container .rh-col18{color: var(--rh-l8)}
+.rh-container .rh-col19{color: var(--rh-l9)}
+.rh-container .rh-col20{color: var(--rh-l10)}
 
-.rh-theme-lime .rh-col11{color: #d6e685}
-.rh-theme-lime .rh-col12{color: #bddb7a}
-.rh-theme-lime .rh-col13{color: #a4d06f}
-.rh-theme-lime .rh-col14{color: #8cc665}
-.rh-theme-lime .rh-col15{color: #74ba58}
-.rh-theme-lime .rh-col16{color: #5cae4c}
-.rh-theme-lime .rh-col17{color: #44a340}
-.rh-theme-lime .rh-col18{color: #378f36}
-.rh-theme-lime .rh-col19{color: #2a7b2c}
-.rh-theme-lime .rh-col20{color: #1e6823}
-
-.night_mode .rh-theme-lime .cal-heatmap-container .q11{fill: #1e6823}
-.night_mode .rh-theme-lime .cal-heatmap-container .q12{fill: #2a7b2c}
-.night_mode .rh-theme-lime .cal-heatmap-container .q13{fill: #378f36}
-.night_mode .rh-theme-lime .cal-heatmap-container .q14{fill: #44a340}
-.night_mode .rh-theme-lime .cal-heatmap-container .q15{fill: #5cae4c}
-.night_mode .rh-theme-lime .cal-heatmap-container .q16{fill: #74ba58}
-.night_mode .rh-theme-lime .cal-heatmap-container .q17{fill: #8cc665}
-.night_mode .rh-theme-lime .cal-heatmap-container .q18{fill: #a4d06f}
-.night_mode .rh-theme-lime .cal-heatmap-container .q19{fill: #bddb7a}
-.night_mode .rh-theme-lime .cal-heatmap-container .q20{fill: #d6e685}
-
-.night_mode .rh-theme-lime .rh-col11{color: #1e6823}
-.night_mode .rh-theme-lime .rh-col12{color: #2a7b2c}
-.night_mode .rh-theme-lime .rh-col13{color: #378f36}
-.night_mode .rh-theme-lime .rh-col14{color: #44a340}
-.night_mode .rh-theme-lime .rh-col15{color: #5cae4c}
-.night_mode .rh-theme-lime .rh-col16{color: #74ba58}
-.night_mode .rh-theme-lime .rh-col17{color: #8cc665}
-.night_mode .rh-theme-lime .rh-col18{color: #a4d06f}
-.night_mode .rh-theme-lime .rh-col19{color: #bddb7a}
-.night_mode .rh-theme-lime .rh-col20{color: #d6e685}
-
-/* ice */
-.rh-theme-ice .cal-heatmap-container .q11{fill: #a8d5f6}
-.rh-theme-ice .cal-heatmap-container .q12{fill: #95c8f3}
-.rh-theme-ice .cal-heatmap-container .q13{fill: #82bbf0}
-.rh-theme-ice .cal-heatmap-container .q14{fill: #70afee}
-.rh-theme-ice .cal-heatmap-container .q15{fill: #5da2eb}
-.rh-theme-ice .cal-heatmap-container .q16{fill: #4a95e8}
-.rh-theme-ice .cal-heatmap-container .q17{fill: #3889e6}
-.rh-theme-ice .cal-heatmap-container .q18{fill: #257ce3}
-.rh-theme-ice .cal-heatmap-container .q19{fill: #126fe0}
-.rh-theme-ice .cal-heatmap-container .q20{fill: #0063de}
-
-.rh-theme-ice .rh-col11{color: #a8d5f6}
-.rh-theme-ice .rh-col12{color: #95c8f3}
-.rh-theme-ice .rh-col13{color: #82bbf0}
-.rh-theme-ice .rh-col14{color: #70afee}
-.rh-theme-ice .rh-col15{color: #5da2eb}
-.rh-theme-ice .rh-col16{color: #4a95e8}
-.rh-theme-ice .rh-col17{color: #3889e6}
-.rh-theme-ice .rh-col18{color: #257ce3}
-.rh-theme-ice .rh-col19{color: #126fe0}
-.rh-theme-ice .rh-col20{color: #0063de}
-
-.night_mode .rh-theme-ice .cal-heatmap-container .q11{fill: #0063de}
-.night_mode .rh-theme-ice .cal-heatmap-container .q12{fill: #126fe0}
-.night_mode .rh-theme-ice .cal-heatmap-container .q13{fill: #257ce3}
-.night_mode .rh-theme-ice .cal-heatmap-container .q14{fill: #3889e6}
-.night_mode .rh-theme-ice .cal-heatmap-container .q15{fill: #4a95e8}
-.night_mode .rh-theme-ice .cal-heatmap-container .q16{fill: #5da2eb}
-.night_mode .rh-theme-ice .cal-heatmap-container .q17{fill: #70afee}
-.night_mode .rh-theme-ice .cal-heatmap-container .q18{fill: #82bbf0}
-.night_mode .rh-theme-ice .cal-heatmap-container .q19{fill: #95c8f3}
-.night_mode .rh-theme-ice .cal-heatmap-container .q20{fill: #a8d5f6}
-
-.night_mode .rh-theme-ice .rh-col11{color: #0063de}
-.night_mode .rh-theme-ice .rh-col12{color: #126fe0}
-.night_mode .rh-theme-ice .rh-col13{color: #257ce3}
-.night_mode .rh-theme-ice .rh-col14{color: #3889e6}
-.night_mode .rh-theme-ice .rh-col15{color: #4a95e8}
-.night_mode .rh-theme-ice .rh-col16{color: #5da2eb}
-.night_mode .rh-theme-ice .rh-col17{color: #70afee}
-.night_mode .rh-theme-ice .rh-col18{color: #82bbf0}
-.night_mode .rh-theme-ice .rh-col19{color: #95c8f3}
-.night_mode .rh-theme-ice .rh-col20{color: #a8d5f6}
-
-/* magenta */
-.rh-theme-magenta .cal-heatmap-container .q11{fill: #fde0dd}
-.rh-theme-magenta .cal-heatmap-container .q12{fill: #fcc5c0}
-.rh-theme-magenta .cal-heatmap-container .q13{fill: #fa9fb5}
-.rh-theme-magenta .cal-heatmap-container .q14{fill: #f768a1}
-.rh-theme-magenta .cal-heatmap-container .q15{fill: #ea4e9c}
-.rh-theme-magenta .cal-heatmap-container .q16{fill: #dd3497}
-.rh-theme-magenta .cal-heatmap-container .q17{fill: #ae017e}
-.rh-theme-magenta .cal-heatmap-container .q18{fill: #7a0177}
-.rh-theme-magenta .cal-heatmap-container .q19{fill: #610070}
-.rh-theme-magenta .cal-heatmap-container .q20{fill: #49006a}
-
-.rh-theme-magenta .rh-col11{color: #fde0dd}
-.rh-theme-magenta .rh-col12{color: #fcc5c0}
-.rh-theme-magenta .rh-col13{color: #fa9fb5}
-.rh-theme-magenta .rh-col14{color: #f768a1}
-.rh-theme-magenta .rh-col15{color: #ea4e9c}
-.rh-theme-magenta .rh-col16{color: #dd3497}
-.rh-theme-magenta .rh-col17{color: #ae017e}
-.rh-theme-magenta .rh-col18{color: #7a0177}
-.rh-theme-magenta .rh-col19{color: #610070}
-.rh-theme-magenta .rh-col20{color: #49006a}
-
-.night_mode .rh-theme-magenta .cal-heatmap-container .q11{fill: #49006a}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q12{fill: #610070}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q13{fill: #7a0177}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q14{fill: #ae017e}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q15{fill: #dd3497}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q16{fill: #ea4e9c}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q17{fill: #f768a1}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q18{fill: #fa9fb5}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q19{fill: #fcc5c0}
-.night_mode .rh-theme-magenta .cal-heatmap-container .q20{fill: #fde0dd}
-
-.night_mode .rh-theme-magenta .rh-col11{color: #49006a}
-.night_mode .rh-theme-magenta .rh-col12{color: #610070}
-.night_mode .rh-theme-magenta .rh-col13{color: #7a0177}
-.night_mode .rh-theme-magenta .rh-col14{color: #ae017e}
-.night_mode .rh-theme-magenta .rh-col15{color: #dd3497}
-.night_mode .rh-theme-magenta .rh-col16{color: #ea4e9c}
-.night_mode .rh-theme-magenta .rh-col17{color: #f768a1}
-.night_mode .rh-theme-magenta .rh-col18{color: #fa9fb5}
-.night_mode .rh-theme-magenta .rh-col19{color: #fcc5c0}
-.night_mode .rh-theme-magenta .rh-col20{color: #fde0dd}
-
-
-/* flame */
-.rh-theme-flame .cal-heatmap-container .q11{fill: #ffeda0}
-.rh-theme-flame .cal-heatmap-container .q12{fill: #fed976}
-.rh-theme-flame .cal-heatmap-container .q13{fill: #feb24c}
-.rh-theme-flame .cal-heatmap-container .q14{fill: #fd8d3c}
-.rh-theme-flame .cal-heatmap-container .q15{fill: #fc6d33}
-.rh-theme-flame .cal-heatmap-container .q16{fill: #fc4e2a}
-.rh-theme-flame .cal-heatmap-container .q17{fill: #e31a1c}
-.rh-theme-flame .cal-heatmap-container .q18{fill: #d00d21}
-.rh-theme-flame .cal-heatmap-container .q19{fill: #bd0026}
-.rh-theme-flame .cal-heatmap-container .q20{fill: #800026}
-
-.rh-theme-flame .rh-col11{color: #ffeda0}
-.rh-theme-flame .rh-col12{color: #fed976}
-.rh-theme-flame .rh-col13{color: #feb24c}
-.rh-theme-flame .rh-col14{color: #fd8d3c}
-.rh-theme-flame .rh-col15{color: #fc6d33}
-.rh-theme-flame .rh-col16{color: #fc4e2a}
-.rh-theme-flame .rh-col17{color: #e31a1c}
-.rh-theme-flame .rh-col18{color: #d00d21}
-.rh-theme-flame .rh-col19{color: #bd0026}
-.rh-theme-flame .rh-col20{color: #800026}
-
-.night_mode .rh-theme-flame .cal-heatmap-container .q11{fill: #800026}
-.night_mode .rh-theme-flame .cal-heatmap-container .q12{fill: #bd0026}
-.night_mode .rh-theme-flame .cal-heatmap-container .q13{fill: #d00d21}
-.night_mode .rh-theme-flame .cal-heatmap-container .q14{fill: #e31a1c}
-.night_mode .rh-theme-flame .cal-heatmap-container .q15{fill: #fc4e2a}
-.night_mode .rh-theme-flame .cal-heatmap-container .q16{fill: #fc6d33}
-.night_mode .rh-theme-flame .cal-heatmap-container .q17{fill: #fd8d3c}
-.night_mode .rh-theme-flame .cal-heatmap-container .q18{fill: #feb24c}
-.night_mode .rh-theme-flame .cal-heatmap-container .q19{fill: #fed976}
-.night_mode .rh-theme-flame .cal-heatmap-container .q20{fill: #ffeda0}
-
-.night_mode .rh-theme-flame .rh-col11{color: #800026}
-.night_mode .rh-theme-flame .rh-col12{color: #bd0026}
-.night_mode .rh-theme-flame .rh-col13{color: #d00d21}
-.night_mode .rh-theme-flame .rh-col14{color: #e31a1c}
-.night_mode .rh-theme-flame .rh-col15{color: #fc4e2a}
-.night_mode .rh-theme-flame .rh-col16{color: #fc6d33}
-.night_mode .rh-theme-flame .rh-col17{color: #fd8d3c}
-.night_mode .rh-theme-flame .rh-col18{color: #feb24c}
-.night_mode .rh-theme-flame .rh-col19{color: #fed976}
-.night_mode .rh-theme-flame .rh-col20{color: #ffeda0}
-
-
-/* Platform-specific adjustments / workarounds */
-/* ################################################################### */

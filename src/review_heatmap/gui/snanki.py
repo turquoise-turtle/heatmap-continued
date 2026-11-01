@@ -29,16 +29,19 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Extra dialogs
+Snanki, the easter-egg snake game (shift-click the heart button)
 """
 
 import time
 from random import randrange
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
-from aqt import mw
+from anki.utils import is_mac
 from aqt.qt import (
     QBasicTimer,
     QColor,
@@ -56,12 +59,14 @@ from aqt.qt import (
 from aqt.utils import openLink, tooltip
 
 from ..consts import ADDON
-from ..libaddon.anki.configmanager import ConfigManager
-from ..libaddon.platform import is_mac
 
-SNANKI_VERSION: str = "0.1.0"
+if TYPE_CHECKING:
+    from aqt.main import AnkiQt
+
+    from ..config import ConfigManager
+
+SNANKI_VERSION: str = "0.1.1"
 STARTING_LIVES: int = 3
-
 
 class Snanki(QDialog):
 
@@ -146,9 +151,9 @@ class Snanki(QDialog):
         """
         Quick hacky workaround to open Patreon link on gameOver screen click.
         """
-        if self.gameOver and self.lives == 0:
-            openLink(ADDON.LINKS["bepatron"])
-        QDialog(self).mousePressEvent(event)
+        if self.isOver and self.lives == 0:
+            openLink(ADDON.LINKS["patreon"])
+        super().mousePressEvent(event)
 
     def newGame(self):
         if self.lives < 1:
@@ -297,74 +302,53 @@ class Snanki(QDialog):
         super().reject()
 
 
-defaults: Dict[str, Dict] = {
-    "profile": {
-        "highscore": 0,
-        "lastplayed": 0,
-        "livesleft": None,
-        "version": SNANKI_VERSION,
-    }
-}
 
-snanki_config = ConfigManager(mw, config_dict=defaults, conf_key="snanki")
-
-
-def invoke_snanki(parent: Optional[QWidget] = None):
-    conf = snanki_config["profile"]
+def invoke_snanki(mw: "AnkiQt", config: "ConfigManager", parent: Optional[QWidget] = None) -> None:
+    if mw.col is None:
+        return
+    conf = config["profile"].setdefault(
+        "snanki", {"highscore": 0, "lastplayed": 0, "livesleft": None}
+    )
     streak_max = getattr(mw, "_hmStreakMax", None)
     streak_cur = getattr(mw, "_hmStreakCur", None)
     activity_daily_avg = getattr(mw, "_hmActivityDailyAvg", None)
 
-    try:
-        day_cutoff = mw.col.sched.day_cutoff
-    except AttributeError:
-        day_cutoff = mw.col.sched.dayCutoff
-
+    day_cutoff = mw.col.sched.day_cutoff
+    day_start = day_cutoff - 86400
     done_today = mw.col.db.scalar(
-        """select count() from revlog where id > ?""",
-        (day_cutoff - 86400) * 1000,
+        "select count() from revlog where id > ?", day_start * 1000
     )
 
-    if activity_daily_avg is not None:
-        goal = max(1, int(round(activity_daily_avg / 2)))
-    else:
-        goal = 1
-
+    goal = max(1, int(round(activity_daily_avg / 2))) if activity_daily_avg else 1
     if done_today < goal:
         tooltip(
             "Psst! You've stumbled on a secret.<br>"
             "Return when you've done at least<br>"
-            "{} cards for the day :)".format(goal)
+            f"{goal} cards for the day :)"
         )
         return
 
-    lastplayed = conf["lastplayed"]
-    livesleft = conf["livesleft"]
-    day_start = day_cutoff - 86400
+    lastplayed = conf.get("lastplayed") or 0
+    livesleft = conf.get("livesleft")
 
-    if lastplayed < day_start:
-        # new day, reset
+    if lastplayed < day_start or livesleft is None:
+        # new day: reset lives, with a bonus for keeping up the streaks
         livesleft = STARTING_LIVES
-        if streak_max is not None:
+        if streak_max:
             livesleft += int(round(0.1 * streak_max**0.5))
-        if streak_cur is not None:
+        if streak_cur:
             livesleft += int(round(0.5 * streak_cur**0.5))
-    elif lastplayed != 0 and lastplayed < day_cutoff:
-        # same day
-        if not livesleft:
-            tooltip(
-                "No more Snanki rounds left for today,<br>"
-                "but feel free to check back tomorrow :) !"
-            )
-            return
-        else:
-            pass  # play with remaining lives
+    elif not livesleft:
+        tooltip(
+            "No more Snanki rounds left for today,<br>"
+            "but feel free to check back tomorrow :) !"
+        )
+        return
 
-    highscore = conf["highscore"]
-
-    snanki = Snanki(highscore=highscore, lives=livesleft, parent=parent)
+    snanki = Snanki(highscore=conf.get("highscore") or 0, lives=livesleft, parent=parent)
     snanki.exec()
 
     conf["highscore"] = snanki.highscore
     conf["livesleft"] = snanki.lives
     conf["lastplayed"] = int(time.time())
+    config.save()

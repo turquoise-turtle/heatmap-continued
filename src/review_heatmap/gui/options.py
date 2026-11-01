@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,196 +26,342 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Options dialog and associated components
+Options dialog
+
+Written directly in Python rather than generated from a Qt Designer form, so
+the add-on needs no compilation step and works unchanged across Qt versions.
 """
 
-import time
-from typing import Optional
+from datetime import datetime
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from aqt.qt import QAction, QApplication, QWidget
+from aqt.qt import (
+    QAbstractItemView,
+    QAction,
+    QCheckBox,
+    QComboBox,
+    QDate,
+    QDateEdit,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QSpinBox,
+    Qt,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
+from aqt.utils import askUser, tooltip
 
-from anki.lang import _
-from aqt import mw
-from aqt.studydeck import StudyDeck
+from ..config import dark_mode_styles, heatmap_colors, heatmap_modes
+from ..consts import ADDON
 
-from ..config import config, heatmap_colors, heatmap_modes
-from ..libaddon.gui.dialog_options import OptionsDialog
-from ..libaddon.platform import PLATFORM
-from ..times import daystart_epoch
-from .forms import options as qtform_options
+if TYPE_CHECKING:
+    from aqt.main import AnkiQt
+
+    from ..config import ConfigManager
+    from ..views import ViewManager
 
 
-class RevHmOptions(OptionsDialog):
+def _combo(choices: Dict[str, Dict[str, str]]) -> QComboBox:
+    combo = QComboBox()
+    for key, info in choices.items():
+        combo.addItem(info["label"], key)
+    return combo
 
-    """
-    Add-on-specific options dialog implementation
-    """
 
-    _mapped_widgets = (
-        (
-            "form.selHmColor",
-            (
-                # order is important (e.g. to set-up items before current item)
-                ("items", {"setter": "_setSelHmColorItems"}),
-                ("value", {"dataPath": "synced/colors"}),
-            ),
-        ),
-        (
-            "form.selHmCalMode",
-            (
-                ("items", {"setter": "_setSelHmCalModeItems"}),
-                ("value", {"dataPath": "synced/mode"}),
-            ),
-        ),
-        ("form.cbHmMain", (("value", {"dataPath": "profile/display/deckbrowser"}),)),
-        ("form.cbHmDeck", (("value", {"dataPath": "profile/display/overview"}),)),
-        ("form.cbHmStats", (("value", {"dataPath": "profile/display/stats"}),)),
-        ("form.cbStreakAll", (("value", {"dataPath": "profile/statsvis"}),)),
-        ("form.spinLimHist", (("value", {"dataPath": "synced/limhist"}),)),
-        ("form.spinLimFcst", (("value", {"dataPath": "synced/limfcst"}),)),
-        (
-            "form.dateLimData",
-            (
-                ("value", {"dataPath": "synced/limdate", "getter": "_getDateLimData"}),
-                ("min", {"setter": "_setDateLimDataMin"}),
-                ("max", {"setter": "_setDateLimDataMax"}),
-            ),
-        ),
-        ("form.cbLimDel", (("value", {"dataPath": "synced/limcdel"}),)),
-        ("form.cbLimResched", (("value", {"dataPath": "synced/limresched"}),)),
-        (
-            "form.listDecks",
-            (
-                (
-                    "value",
-                    {"dataPath": "synced/limdecks", "setter": "_setListDecksValue"},
-                ),
-            ),
-        ),
-    )
+def _select(combo: QComboBox, key: str) -> None:
+    index = combo.findData(key)
+    combo.setCurrentIndex(index if index >= 0 else 0)
 
-    def __init__(self, config, mw, parent=None, **kwargs):
-        # Mediator methods defined in mapped_widgets might need access to
-        # certain instance attributes. As super().__init__ calls these
-        # mediator methods it is important that we set the attributes
-        # beforehand:
-        self.parent = parent or mw
+
+class OptionsDialog(QDialog):
+    def __init__(self, mw: "AnkiQt", config: "ConfigManager", parent: Optional[QWidget] = None):
+        super().__init__(parent or mw)
         self.mw = mw
-        super(RevHmOptions, self).__init__(
-            self._mapped_widgets,
-            config,
-            form_module=qtform_options,
-            parent=self.parent,
-            **kwargs
+        self.config = config
+        self.setWindowTitle(f"{ADDON.NAME} Options")
+        self.setMinimumWidth(480)
+        self._build()
+        self._load()
+
+    # Layout
+
+    def _build(self) -> None:
+        tabs = QTabWidget()
+        tabs.addTab(self._appearance_tab(), "Appearance")
+        tabs.addTab(self._data_tab(), "Data")
+        tabs.addTab(self._advanced_tab(), "Advanced")
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.RestoreDefaults
         )
-        # Instance methods that modify the initialized UI should either be
-        # called from self._setupUI or from here
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        restore = buttons.button(QDialogButtonBox.StandardButton.RestoreDefaults)
+        assert restore is not None
+        restore.clicked.connect(self._restore_defaults)
+        about = QPushButton("About…")
+        about.clicked.connect(self._show_about)
+        buttons.addButton(about, QDialogButtonBox.ButtonRole.HelpRole)
 
-    # UI adjustments
+        layout = QVBoxLayout(self)
+        layout.addWidget(tabs)
+        layout.addWidget(buttons)
 
-    def _setupUI(self):
-        super(RevHmOptions, self)._setupUI()
+    def _appearance_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
 
-        # manually adjust title label font sizes on Windows
-        # gap between default windows font sizes and sizes that work well
-        # on Linux and macOS is simply too big
-        # TODO: find a better solution
-        if PLATFORM == "win":
-            default_size = QApplication.font().pointSize()
-            for label in [self.form.fmtLabContrib, self.form.labHeading]:
-                font = label.font()
-                font.setPointSize(int(default_size * 1.5))
-                label.setFont(font)
+        self.colors = _combo(heatmap_colors)
+        self.colors.setToolTip("Shift-click the options button on the heatmap to cycle palettes")
+        form.addRow("Colour palette:", self.colors)
 
-    # Events:
+        self.darkmode = _combo(dark_mode_styles)
+        form.addRow("Palette in dark mode:", self.darkmode)
 
-    def _setupEvents(self):
-        super(RevHmOptions, self)._setupEvents()
-        self.form.btnDeckAdd.clicked.connect(self._onAddIgnoredDeck)
-        self.form.btnDeckDel.clicked.connect(self._onDeleteIgnoredDeck)
+        self.mode = _combo(heatmap_modes)
+        self.mode.setToolTip("Shift-click the 'today' button on the heatmap to switch modes")
+        form.addRow("Calendar mode:", self.mode)
 
-    # Actions:
+        group = QGroupBox("Show heatmap on")
+        group_layout = QVBoxLayout(group)
+        self.show_deckbrowser = QCheckBox("Deck browser (main screen)")
+        self.show_overview = QCheckBox("Deck overview and finished-deck screen")
+        self.show_stats = QCheckBox("Statistics window (legacy, shift-click Stats)")
+        for box in (self.show_deckbrowser, self.show_overview, self.show_stats):
+            group_layout.addWidget(box)
+        form.addRow(group)
 
-    # Deck list buttons
-    # TODO: Migrate to custom widget
+        self.statsvis = QCheckBox("Show streak statistics even where the heatmap is hidden")
+        form.addRow(self.statsvis)
+        return page
 
-    def _onAddIgnoredDeck(self):
-        list_widget = self.form.listDecks
-        ret = StudyDeck(
-            self.mw,
-            accept=_("Choose"),
-            title=_("Choose Deck"),
-            help="",
-            parent=self,
-            geomKey="selectDeck",
+    def _data_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
+
+        self.limhist = QSpinBox()
+        self.limhist.setRange(0, 36500)
+        self.limhist.setSpecialValueText("No limit")
+        self.limhist.setSuffix(" days")
+        form.addRow("History limit:", self.limhist)
+
+        self.limfcst = QSpinBox()
+        self.limfcst.setRange(0, 36500)
+        self.limfcst.setSpecialValueText("No limit")
+        self.limfcst.setSuffix(" days")
+        form.addRow("Forecast limit:", self.limfcst)
+
+        date_row = QHBoxLayout()
+        self.limdate_enabled = QCheckBox("Ignore data before")
+        self.limdate = QDateEdit()
+        self.limdate.setCalendarPopup(True)
+        self.limdate.setDisplayFormat("yyyy-MM-dd")
+        self.limdate.setMaximumDate(QDate.currentDate())
+        self.limdate_enabled.toggled.connect(self.limdate.setEnabled)
+        date_row.addWidget(self.limdate_enabled)
+        date_row.addWidget(self.limdate)
+        date_row.addStretch()
+        form.addRow(date_row)
+
+        self.limcdel = QCheckBox("Exclude reviews of cards that have since been deleted")
+        form.addRow(self.limcdel)
+        self.limresched = QCheckBox("Exclude manual reschedules and 'forget' from history")
+        form.addRow(self.limresched)
+
+        group = QGroupBox("Ignored decks")
+        group_layout = QHBoxLayout(group)
+        self.decks = QListWidget()
+        self.decks.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        group_layout.addWidget(self.decks)
+        side = QVBoxLayout()
+        add = QPushButton("Add…")
+        add.clicked.connect(self._add_deck)
+        remove = QPushButton("Remove")
+        remove.clicked.connect(self._remove_decks)
+        side.addWidget(add)
+        side.addWidget(remove)
+        side.addStretch()
+        group_layout.addLayout(side)
+        form.addRow(group)
+        return page
+
+    def _advanced_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        self.debug = QCheckBox("Write debug information to Anki's add-on log")
+        layout.addWidget(self.debug)
+        note = QLabel(
+            "Logs are stored under logs/addons/review_heatmap in your Anki data "
+            "folder. Appearance and data settings are synchronised with your "
+            "collection; display settings are per profile."
         )
-        deck_name = ret.name
-        if not deck_name:
-            return False
-        deck_id = self.mw.col.decks.id(deck_name)
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        layout.addStretch()
+        return page
 
-        item_tuple = (deck_name, deck_id)
+    # Loading and saving
 
-        if not self.interface.setCurrentByData(list_widget, deck_id):
-            self.interface.addValueAndMakeCurrent(list_widget, item_tuple)
+    def _load(self) -> None:
+        synced = self.config["synced"]
+        profile = self.config["profile"]
+        local = self.config["local"]
 
-    def _onDeleteIgnoredDeck(self):
-        list_widget = self.form.listDecks
-        self.interface.removeSelected(list_widget)
+        _select(self.colors, synced.get("colors", "lime"))
+        _select(self.darkmode, synced.get("darkmode", "inverted"))
+        _select(self.mode, synced.get("mode", "year"))
 
-    # Helpers:
+        display = profile.get("display", {})
+        self.show_deckbrowser.setChecked(display.get("deckbrowser", True))
+        self.show_overview.setChecked(display.get("overview", True))
+        self.show_stats.setChecked(display.get("stats", True))
+        self.statsvis.setChecked(profile.get("statsvis", True))
 
-    def _getComboItems(self, dct):
-        return list((val["label"], key) for key, val in dct.items())
+        self.limhist.setValue(int(synced.get("limhist") or 0))
+        self.limfcst.setValue(int(synced.get("limfcst") or 0))
 
-    # Config setters:
+        limdate = synced.get("limdate") or 0
+        iso = self._limdate_to_iso(limdate)
+        self.limdate_enabled.setChecked(bool(iso))
+        self.limdate.setEnabled(bool(iso))
+        self.limdate.setDate(QDate.fromString(iso, "yyyy-MM-dd") if iso else QDate.currentDate())
 
-    def _setDateLimDataMin(self, data_val):
-        return self.mw.col.crt
+        self.limcdel.setChecked(bool(synced.get("limcdel", False)))
+        self.limresched.setChecked(bool(synced.get("limresched", True)))
 
-    def _setDateLimDataMax(self, data_val):
-        return int(round(time.time()))
+        self.decks.clear()
+        for did in synced.get("limdecks") or []:
+            name = self.mw.col.decks.name_if_exists(int(did)) if self.mw.col else None
+            if name:
+                self._add_deck_item(name, int(did))
 
-    def _setSelHmColorItems(self, data_val):
-        return self._getComboItems(heatmap_colors)
+        self.debug.setChecked(bool(local.get("debug", False)))
 
-    def _setSelHmCalModeItems(self, data_val):
-        return self._getComboItems(heatmap_modes)
+    def _limdate_to_iso(self, value) -> str:
+        if not value:
+            return ""
+        if isinstance(value, str):
+            return value
+        # Earlier versions stored a Unix timestamp
+        try:
+            return datetime.fromtimestamp(int(value)).date().isoformat()
+        except (OverflowError, OSError, ValueError):
+            return ""
 
-    def _setListDecksValue(self, dids):
-        item_tuples = []
-        for did in dids:
-            try:
-                name = self.mw.col.decks.name_if_exists(did)
-            except AttributeError:
-                name = self.mw.col.decks.nameOrNone(did)
-            if not name:
-                continue
-            item_tuples.append((name, did))
-        return item_tuples
+    def accept(self) -> None:
+        synced = self.config["synced"]
+        profile = self.config["profile"]
+        local = self.config["local"]
 
-    # Config getters:
+        synced["colors"] = self.colors.currentData()
+        synced["darkmode"] = self.darkmode.currentData()
+        synced["mode"] = self.mode.currentData()
+        synced["limhist"] = self.limhist.value()
+        synced["limfcst"] = self.limfcst.value()
+        synced["limdate"] = (
+            self.limdate.date().toString("yyyy-MM-dd") if self.limdate_enabled.isChecked() else 0
+        )
+        synced["limcdel"] = self.limcdel.isChecked()
+        synced["limresched"] = self.limresched.isChecked()
+        synced["limdecks"] = [
+            self.decks.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.decks.count())
+        ]
+        synced["version"] = ADDON.VERSION
 
-    def _getDateLimData(self, widget_val):
-        db = self.mw.col.db
-        val = daystart_epoch(db, widget_val)
-        default = daystart_epoch(db, self._setDateLimDataMin(None))
-        if val == default:
-            return 0
-        return widget_val
+        profile["display"] = {
+            "deckbrowser": self.show_deckbrowser.isChecked(),
+            "overview": self.show_overview.isChecked(),
+            "stats": self.show_stats.isChecked(),
+        }
+        profile["statsvis"] = self.statsvis.isChecked()
+        profile["version"] = ADDON.VERSION
+
+        local["debug"] = self.debug.isChecked()
+
+        self.config.save()
+        super().accept()
+
+    # Actions
+
+    def _restore_defaults(self) -> None:
+        if not askUser("Restore all Review Heatmap settings to their defaults?", parent=self):
+            return
+        self.config.restore_defaults()
+        self._load()
+        tooltip("Defaults restored", parent=self)
+
+    def _show_about(self) -> None:
+        from .about import invoke_about_dialog
+
+        invoke_about_dialog(parent=self)
+
+    def _add_deck(self) -> None:
+        if self.mw.col is None:
+            return
+        existing = {
+            self.decks.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.decks.count())
+        }
+        candidates: List[Tuple[str, int]] = sorted(
+            (d.name, d.id) for d in self.mw.col.decks.all_names_and_ids() if d.id not in existing
+        )
+        if not candidates:
+            tooltip("All decks are already ignored", parent=self)
+            return
+        name, ok = QInputDialog.getItem(
+            self, "Ignore deck", "Deck:", [c[0] for c in candidates], 0, False
+        )
+        if not ok or not name:
+            return
+        did = dict(candidates)[name]
+        self._add_deck_item(name, did)
+
+    def _add_deck_item(self, name: str, did: int) -> None:
+        item = QListWidgetItem(name)
+        item.setData(Qt.ItemDataRole.UserRole, did)
+        self.decks.addItem(item)
+
+    def _remove_decks(self) -> None:
+        for item in self.decks.selectedItems():
+            self.decks.takeItem(self.decks.row(item))
 
 
-def invoke_options_dialog(parent: Optional[QWidget] = None) -> int:
-    """Call settings dialog"""
-    dialog = RevHmOptions(config, mw, parent=parent)
-    return dialog.exec()
+def invoke_options_dialog(mw: "AnkiQt", config: "ConfigManager", parent: Optional[QWidget] = None) -> int:
+    if mw.col is None:
+        tooltip("Please open a profile first")
+        return 0
+    return OptionsDialog(mw, config, parent=parent).exec()
 
 
-def initialize_options():
-    config.setConfigAction(invoke_options_dialog)
-    # Set up menu entry:
-    options_action = QAction("Review &Heatmap Options...", mw)
-    options_action.triggered.connect(lambda _: invoke_options_dialog())
-    mw.form.menuTools.addAction(options_action)
+class OptionsIntegration:
+    """Tools menu entry and the add-on manager's Config button."""
+
+    def __init__(self, mw: "AnkiQt", config: "ConfigManager", views: "ViewManager"):
+        self._mw = mw
+        self._config = config
+        self._views = views
+
+    def register(self) -> None:
+        self._mw.addonManager.setConfigAction(ADDON.MODULE, self.open)
+        action = QAction("Review &Heatmap Options...", self._mw)
+        action.triggered.connect(lambda _checked=False: self.open())
+        self._mw.form.menuTools.addAction(action)
+
+    def open(self) -> None:
+        invoke_options_dialog(self._mw, self._config)
+

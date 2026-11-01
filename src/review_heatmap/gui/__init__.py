@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,15 +26,10 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Package that bundles UI components used by the add-on
-(e.g. dialogs, Qt forms, other resources)
+Dialogs and other Qt components
 """
-
-
-def initialize_qt_resources():
-    """
-    Load Qt resources into memory
-    """
-    from . import resources  # noqa: F401

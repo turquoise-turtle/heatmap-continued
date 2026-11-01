@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,12 +26,16 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
 Static web components and templates
 """
 
-from .libaddon.platform import MODULE_ADDON, PLATFORM
+from .consts import ADDON
+from .platform import PLATFORM
 
 CSS_DISABLE_HEATMAP = "rh-disable-heatmap"
 CSS_DISABLE_STATS = "rh-disable-stats"
@@ -41,22 +43,20 @@ CSS_PLATFORM_PREFIX = "rh-platform"
 CSS_MODE_PREFIX = "rh-mode"
 CSS_THEME_PREFIX = "rh-theme"
 CSS_VIEW_PREFIX = "rh-view"
+CSS_DARK_PREFIX = "rh-dark"
 
-WEB_BASE = f"/_addons/{MODULE_ADDON}/web"
+WEB_BASE = f"/_addons/{ADDON.MODULE}/web"
 
-HTML_MAIN_ELEMENT: str = f"""
-<script type="text/javascript" src="{WEB_BASE}/d3.min.js"></script>
-<script type="text/javascript" src="{WEB_BASE}/anki-review-heatmap.js"></script>
+SCRIPT_URLS = (f"{WEB_BASE}/d3.min.js", f"{WEB_BASE}/anki-review-heatmap.js")
 
-<script>
-var rhPlatform = "{PLATFORM}";
-var rhNewFinderAPI = false;
-</script>
-
-<div class="rh-container {{classes}}">
+HTML_MAIN_ELEMENT: str = (
+    "".join(f'<script type="text/javascript" src="{url}"></script>\n' for url in SCRIPT_URLS)
+    + f"""
+<div class="rh-container {CSS_PLATFORM_PREFIX}-{PLATFORM} {{classes}}">
 {{content}}
 </div>
 """
+)
 
 HTML_HEATMAP: str = f"""
 <div class="heatmap">
@@ -68,7 +68,7 @@ HTML_HEATMAP: str = f"""
             <div title="Go back\n(Shift-click for first year)" onclick="reviewHeatmap.onHmNavigate(event, this, 'prev');" class="hm-btn">
                 <img height="10px" src="{WEB_BASE}/assets/left.svg" />
             </div>
-            <div title="Today" onclick="reviewHeatmap.onHmHome(event, this);" class="hm-btn">
+            <div title="Today\n(Shift-click to switch calendar mode)" onclick="reviewHeatmap.onHmHome(event, this);" class="hm-btn">
                 <img height="10px" src="{WEB_BASE}/assets/circle.svg" />
             </div>
             <div title="Go forward\n(Shift-click for last year)" onclick="reviewHeatmap.onHmNavigate(event, this, 'next');" class="hm-btn">
@@ -76,10 +76,10 @@ HTML_HEATMAP: str = f"""
             </div>
         </div>
         <div class="alignright">
-            <div class="hm-btn opts-btn" title="Options" onclick="reviewHeatmap.onHmOpts(event, this);">
+            <div class="hm-btn opts-btn" title="Options\n(Shift-click to cycle colour palettes)" onclick="reviewHeatmap.onHmOpts(event, this);">
                 <img src="{WEB_BASE}/assets/options.svg" />
             </div>
-            <div class="hm-btn opts-btn" title="Support this add-on" onclick="reviewHeatmap.onHmContrib(event, this);">
+            <div class="hm-btn opts-btn" title="About this add-on" onclick="reviewHeatmap.onHmContrib(event, this);">
                 <img src="{WEB_BASE}/assets/heart_bw.svg" />
             </div>
         </div>

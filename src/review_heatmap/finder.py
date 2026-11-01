@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,71 +26,90 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Finder extensions
+Browser search extensions
+
+Clicking a day in the heatmap opens the browser with a search like
+``rid:2025-10-05``. Anki has no search for "reviewed on this calendar date",
+so the token is rewritten into a plain ``cid:`` search before Anki parses it.
+Rewriting the search string (instead of injecting result ids, as earlier
+versions did) works in both the cards and notes modes of the browser.
 """
 
 import re
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List
 
-from aqt import mw
+from .times import revlog_id_range_for_date
 
 if TYPE_CHECKING:
+    from anki.collection import Collection
     from aqt.browser.table import SearchContext
 
+    from .config import ConfigManager
 
-# FIXME: No longer works in combination with other search specifiers
-# e.g. deck:current, which we actually add in the overview view
+_RE_RID_DATE = re.compile(r"(?<![\w:])rid:(\d{4}-\d{2}-\d{2})(?![\w:])")
+# Legacy format produced by earlier versions: millisecond range
+_RE_RID_RANGE = re.compile(r"(?<![\w:])rid:(\d{9,})[:,](\d{9,})(?![\w:])")
 
 
-def _find_cards_reviewed_between(start_date: int, end_date: int) -> List[int]:
-    # select from cards instead of just selecting uniques from revlog
-    # in order to exclude deleted cards
-    return mw.col.db.list(  # type: ignore
-        "SELECT id FROM cards where id in "
-        "(SELECT cid FROM revlog where id between ? and ?)",
-        start_date,
-        end_date,
+def cards_reviewed_between(
+    col: "Collection", start_ms: int, end_ms: int, include_rescheduled: bool
+) -> List[int]:
+    ease_condition = "" if include_rescheduled else " AND ease > 0"
+    return col.db.list(
+        "SELECT DISTINCT cid FROM revlog WHERE id >= ? AND id < ?"
+        + ease_condition
+        + " AND cid IN (SELECT id FROM cards)",
+        start_ms,
+        end_ms,
     )
 
 
-_re_rid = re.compile(r"^rid:([0-9]+):([0-9]+)$")
+def rewrite_search(search: str, col: "Collection", config: "ConfigManager") -> str:
+    """Replace rid: tokens with equivalent cid: tokens."""
+    if "rid:" not in search:
+        return search
+
+    include_rescheduled = not config["synced"].get("limresched", True)
+
+    def to_cid(start_ms: int, end_ms: int) -> str:
+        cids = cards_reviewed_between(col, start_ms, end_ms, include_rescheduled)
+        # cid:0 is a valid search that matches nothing
+        return "cid:" + (",".join(str(c) for c in cids) if cids else "0")
+
+    def replace_date(match: "re.Match[str]") -> str:
+        rollover = int(col.get_config("rollover", 4))
+        start_ms, end_ms = revlog_id_range_for_date(match.group(1), rollover)
+        return to_cid(start_ms, end_ms)
+
+    def replace_range(match: "re.Match[str]") -> str:
+        return to_cid(int(match.group(1)), int(match.group(2)))
+
+    search = _RE_RID_DATE.sub(replace_date, search)
+    search = _RE_RID_RANGE.sub(replace_range, search)
+    return search
 
 
-def find_rid(search: str) -> Optional[List[int]]:
-    match = _re_rid.match(search)
+class FinderExtension:
+    def __init__(self, mw, config: "ConfigManager"):
+        self._mw = mw
+        self._config = config
 
-    if not match:
-        return None
+    def register(self) -> None:
+        from aqt.gui_hooks import browser_will_search
 
-    start_date = int(match[1])
-    end_date = int(match[2])
+        browser_will_search.append(self.on_browser_will_search)
 
-    return _find_cards_reviewed_between(start_date, end_date)
+    def on_browser_will_search(self, search_context: "SearchContext") -> None:
+        search = search_context.search
+        if not isinstance(search, str) or "rid:" not in search:
+            return
+        col = self._mw.col
+        if col is None:
+            return
+        search_context.search = rewrite_search(search, col, self._config)
 
-
-def on_browser_will_search(search_context: "SearchContext"):
-    search = search_context.search
-    if search.startswith("rid"):
-        found_ids = find_rid(search)
-    else:
-        return
-
-    if found_ids is None:
-        return
-
-    if hasattr(search_context, "card_ids"):
-        search_context.card_ids = found_ids  # type: ignore[attr-defined]
-    else:
-        search_context.ids = found_ids  # type: ignore[assignment]
-
-
-# HOOKS
-######################################################################
-
-
-def initialize_finder():
-    from aqt.gui_hooks import browser_will_search
-
-    browser_will_search.append(on_browser_will_search)

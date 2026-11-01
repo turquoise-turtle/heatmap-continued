@@ -1,4 +1,4 @@
-/* 
+/*
 Review Heatmap Add-on for Anki
 
 Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -27,6 +27,9 @@ If not, please request a copy through one of the means of contact
 listed here: <https://glutanimate.com/contact/>.
 
 Any modifications to this file must keep this entire header intact.
+
+This file is part of a modified version of Review Heatmap (2026). It is
+not the original program; see README.md for the list of changes.
 */
 
 import calHeatmapCss from "./_vendor/cal-heatmap.css";
@@ -35,12 +38,17 @@ import reviewHeatmapCss from "./review-heatmap.css";
 import { CalHeatMap } from "./_vendor/cal-heatmap.js";
 import { ReviewHeatmapOptions, ReviewHeatmapData } from "./types";
 import { bridgeCommand } from "./bridge";
-import { utcDayToLocalDate, utcDaySecondsToLocalSeconds } from "./dates";
+import {
+  daysBetweenLocalDates,
+  localDateToIso,
+  startOfLocalDay,
+  utcDayToLocalDate,
+  utcDaySecondsToLocalSeconds,
+} from "./dates";
 
 const STYLE_ID = "review-heatmap-style";
+const ANIMATION_MS = 300;
 
-// The stylesheets are bundled as text (esbuild --loader:.css=text) and
-// injected once, so no separate CSS file has to be shipped or exported.
 function ensureStyles() {
   if (document.getElementById(STYLE_ID)) {
     return;
@@ -64,52 +72,49 @@ interface CalHeatmapCellData {
 }
 
 class ReviewHeatmap {
-  private heatmap: CalHeatMap | null;
+  private heatmap: CalHeatMap | null = null;
+  private today: Date;
+  // Navigating while cal-heatmap is still animating corrupts its domain list,
+  // so navigation is ignored until the animation has finished.
+  private busyUntil = 0;
 
   constructor(private options: ReviewHeatmapOptions) {
-    this.heatmap = null;
+    this.today = utcDayToLocalDate(this.options.today);
   }
 
   public create(data: ReviewHeatmapData) {
     ensureStyles();
 
-    // Python supplies days as 00:00 UTC; cal-heatmap wants local midnight of
-    // the same calendar date.
-    let calTodayDate = utcDayToLocalDate(this.options.today);
+    const today = this.today;
     let calMinDate = utcDayToLocalDate(this.options.start);
     let calMaxDate = utcDayToLocalDate(this.options.stop);
-    let calStartDate = new Date(calTodayDate);
+    let calStartDate = new Date(today);
 
-    // Running overview of 6-month activity in month view:
+    // Running overview of recent activity in month view
     if (this.options.domain === "month") {
-      let padding = this.options.range / 2;
-      // TODO: fix
-      let paddingLower = Math.round(padding - 1);
-      let paddingUpper = Math.round(padding + 1);
+      const padding = this.options.range / 2;
+      const paddingLower = Math.round(padding - 1);
+      const paddingUpper = Math.round(padding + 1);
 
       calStartDate.setMonth(calStartDate.getMonth() - paddingLower);
       calStartDate.setDate(1);
 
-      // Start at first data point if history < 6 months
+      // Start at first data point if history is shorter than the window
       if (calMinDate.getTime() > calStartDate.getTime()) {
         calStartDate = calMinDate;
       }
 
-      let tempDate = new Date(calTodayDate);
+      const tempDate = new Date(today);
       tempDate.setMonth(tempDate.getMonth() + paddingUpper);
       tempDate.setDate(1);
 
-      // Always go back to centered view after scrolling back then forward
+      // Always go back to centred view after scrolling back then forward
       if (tempDate.getTime() > calMaxDate.getTime()) {
         calMaxDate = tempDate;
       }
     }
 
-    let heatmap = new CalHeatMap();
-
-    // console.log("Date: options.today " + new Date(options.today))
-    // console.log("Date: calTodayDate "+ calTodayDate)
-    // console.log("Date: Date() "+ new Date())
+    const heatmap = new CalHeatMap();
 
     heatmap.init({
       domain: this.options.domain,
@@ -122,111 +127,57 @@ class ReviewHeatmap {
       dayLabel: true,
       domainMargin: [1, 1, 1, 1],
       itemName: ["card", "cards"],
-      highlight: calTodayDate,
-      today: calTodayDate,
+      highlight: today,
+      today: today,
       start: calStartDate,
       legend: this.options.legend,
       displayLegend: false,
       domainLabelFormat: this.options.domLabForm,
+      animationDuration: ANIMATION_MS,
       tooltip: true,
       subDomainTitleFormat: (
         isEmpty: boolean,
         formatData: CalHeatmapFormatData,
         cellData: CalHeatmapCellData
       ): string => {
-        // format tooltips
-        let tooltip: string;
-
         let count = formatData.count;
         if (count !== undefined && count.startsWith("-")) {
           count = count.substring(1);
         }
-
         if (isEmpty) {
-          tooltip = `<b>No</b> ${
-            Date.now() < cellData.t ? "cards due" : "reviews"
-          } on ${formatData.date}`;
-        } else {
-          const label = Math.abs(cellData.v) == 1 ? "card" : "cards";
-          tooltip = `<b>${count}</b> ${label} <b>${
-            cellData.v < 0 ? "due" : "reviewed"
-          }</b> ${formatData.connector} ${formatData.date}`;
+          const what = cellData.t > today.getTime() ? "cards due" : "reviews";
+          return `<b>No</b> ${what} on ${formatData.date}`;
         }
-
-        return tooltip;
+        const label = Math.abs(cellData.v) == 1 ? "card" : "cards";
+        const verb = cellData.v < 0 ? "due" : "reviewed";
+        return `<b>${count}</b> ${label} <b>${verb}</b> ${formatData.connector} ${formatData.date}`;
       },
-      onClick: (date, nb) => {
-        // Click handler that shows cards assigned to a particular date
-        // in Anki's card browser
-
+      onClick: (date: Date, nb: number | null) => {
+        // Show the cards of the clicked day in Anki's browser
         if (nb === null || nb == 0) {
-          // No cards for that day. Preserve highlight and return.
-          heatmap.highlight(calTodayDate);
+          heatmap.highlight(today);
           return;
         }
 
-        // console.log(date)
-
-        // Determine if review history or forecasts
-        let isHistory = nb >= 0;
-
-        // Apply deck limits
+        const day = startOfLocalDay(date);
         let cmd = this.options.whole ? "" : "deck:current ";
 
-        let today = new Date(calTodayDate);
-        today.setHours(0, 0, 0); // just a precaution against
-        // calTodayDate not being zeroed
-        let diffSecs = Math.abs(today.getTime() - date.getTime()) / 1000;
-        let diffDays = Math.round(diffSecs / 86400);
-
-        // Construct search command
         if (nb >= 0) {
-          // Review log
-          // @ts-expect-error
-          if (!window.rhNewFinderAPI) {
-            // Use custom finder based on revlog ID range
-            let cutoff1 = date.getTime() + this.options.offset * 3600 * 1000;
-            let cutoff2 = cutoff1 + 86400 * 1000;
-            cmd += "rid:" + cutoff1 + ":" + cutoff2;
-          } else {
-            cmd += "prop:rated=" + (diffDays ? -diffDays : 0);
-          }
+          // Review history: resolved to card ids by the add-on's Python side
+          cmd += "rid:" + localDateToIso(day);
         } else {
           // Forecast
-          cmd += "prop:due=" + diffDays;
+          cmd += "prop:due=" + daysBetweenLocalDates(today, day);
         }
 
-        // Invoke browser
         bridgeCommand("revhm_browse:" + cmd);
-
-        // Update date highlight to include clicked on date AND today
-        heatmap.highlight([calTodayDate, date]);
+        heatmap.highlight([today, day]);
       },
-      afterLoadData: function afterLoadData(timestamps: string[]) {
-        // Cal-heatmap always uses the local timezone, which is problematic
-        // when supplying UTC start-of-day times.
-        //
-        // This workaround updates the supplied timestamps to force
-        // cal-heatmap to display times in UTC. E.g.:
-        //   - input datetime (UTC): 2018-01-02 00:00:00 UTC+0000 (UTC)
-        //   - cal-heatmap datetime: 2018-01-01 20:00:00 UTC-0400 (EDT)
-        //   - workaround datetime:  2018-01-02 00:00:00 UTC-0400 (EDT)
-        //
-        // Please note that this change will skew any programmatic data
-        // output from cal-heatmap, e.g. when implementing an onClick
-        // handler. You will have to take the updated datetime into
-        // account in that case.
-        //
-        // cf.: https://github.com/wa0x6e/cal-heatmap/issues/122
-        //      https://github.com/wa0x6e/cal-heatmap/issues/126
-        // Converting through the UTC date components (instead of adding
-        // the offset in force at that instant) keeps days correct across
-        // daylight-saving transitions.
-        let results = {};
-        for (let timestamp_string in timestamps) {
-          let value = timestamps[timestamp_string];
-          let timestamp = parseInt(timestamp_string, 10);
-          results[utcDaySecondsToLocalSeconds(timestamp)] = value;
+      afterLoadData: (timestamps: { [key: string]: number }) => {
+        // Map each UTC day key onto local midnight of the same calendar date
+        const results: { [key: number]: number } = {};
+        for (const key in timestamps) {
+          results[utcDaySecondsToLocalSeconds(parseInt(key, 10))] = timestamps[key];
         }
         return results;
       },
@@ -236,48 +187,49 @@ class ReviewHeatmap {
     this.heatmap = heatmap;
   }
 
-  public onHmHome(event: KeyboardEvent, button) {
+  private navigationBlocked(): boolean {
+    const now = Date.now();
+    if (now < this.busyUntil) {
+      return true;
+    }
+    this.busyUntil = now + ANIMATION_MS + 50;
+    return false;
+  }
+
+  public onHmHome(event: MouseEvent, _button: HTMLElement) {
     if (event.shiftKey) {
       bridgeCommand("revhm_modeswitch");
-    } else {
+      return;
+    }
+    if (this.heatmap && !this.navigationBlocked()) {
       this.heatmap.rewind();
     }
   }
 
-  public onHmNavigate(
-    event: KeyboardEvent,
-    button,
-    direction: "next" | "prev"
-  ) {
+  public onHmNavigate(event: MouseEvent, _button: HTMLElement, direction: "next" | "prev") {
+    if (!this.heatmap || this.navigationBlocked()) {
+      return;
+    }
+    const options = this.heatmap.options;
     if (direction === "next") {
       if (event.shiftKey) {
-        this.heatmap.jumpTo(this.heatmap.options.maxDate, false); // shift-click to jump to limit
+        this.heatmap.jumpTo(options.maxDate, false);
       } else {
-        this.heatmap.next(this.heatmap.options.range);
+        this.heatmap.next(options.range);
       }
+    } else if (event.shiftKey) {
+      this.heatmap.jumpTo(options.minDate, false);
     } else {
-      if (event.shiftKey) {
-        this.heatmap.jumpTo(this.heatmap.options.minDate, false); // shift-click to jump to limit
-      } else {
-        this.heatmap.previous(this.heatmap.options.range);
-      }
+      this.heatmap.previous(options.range);
     }
   }
 
-  public onHmOpts(event: KeyboardEvent, button) {
-    if (event.shiftKey) {
-      bridgeCommand("revhm_themeswitch");
-    } else {
-      bridgeCommand("revhm_opts");
-    }
+  public onHmOpts(event: MouseEvent, _button: HTMLElement) {
+    bridgeCommand(event.shiftKey ? "revhm_themeswitch" : "revhm_opts");
   }
 
-  public onHmContrib(event, button) {
-    if (event.shiftKey) {
-      bridgeCommand("revhm_snanki");
-    } else {
-      bridgeCommand("revhm_contrib");
-    }
+  public onHmContrib(event: MouseEvent, _button: HTMLElement) {
+    bridgeCommand(event.shiftKey ? "revhm_snanki" : "revhm_about");
   }
 }
 

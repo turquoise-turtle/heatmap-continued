@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,6 +26,9 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
 Overarching control of heatmap rendering and state
@@ -35,26 +36,27 @@ Overarching control of heatmap rendering and state
 
 from typing import TYPE_CHECKING, Optional
 
-from aqt.main import AnkiQt
-
 from .activity import ActivityReporter
-from .renderer import HeatmapRenderer, HeatmapView
-from .web_bridge import HeatmapBridge
 from .errors import CollectionError
+from .renderer import HeatmapRenderer, HeatmapView
 
 if TYPE_CHECKING:
-    from .libaddon.anki.configmanager import ConfigManager
+    from aqt.main import AnkiQt
+
+    from .config import ConfigManager
 
 
 class HeatmapController:
-    def __init__(self, mw: AnkiQt, config: "ConfigManager"):
+    def __init__(self, mw: "AnkiQt", config: "ConfigManager"):
         self._mw = mw
-        self._config: ConfigManager = config
-
-        self._bridge: Optional[HeatmapBridge] = HeatmapBridge(self._mw, self._config)
-        self._bridge.register()
-
+        self._config = config
         self._renderer: Optional[HeatmapRenderer] = None
+        self._col_id: Optional[int] = None
+
+    @property
+    def config(self) -> "ConfigManager":
+        """The live configuration; changes saved through it refresh the views."""
+        return self._config
 
     def render_for_view(
         self,
@@ -64,20 +66,24 @@ class HeatmapController:
         current_deck_only: bool = False,
     ) -> str:
         col = self._mw.col
-        if not col:
+        if col is None or col.db is None:
             raise CollectionError("Anki collection and/or database is not ready")
 
-        if not self._renderer:
+        # Profile switches and full syncs replace the collection object, so the
+        # reporter is rebuilt whenever a different collection shows up.
+        if self._renderer is None or self._col_id != id(col):
             reporter = ActivityReporter(col, self._config)
             self._renderer = HeatmapRenderer(self._mw, reporter, self._config)
-        else:
-            pass
-            # self._renderer.set_activity_reporter(reporter)
+            self._col_id = id(col)
 
         return self._renderer.render(view, limhist, limfcst, current_deck_only)
 
+    def reset(self) -> None:
+        """Drop all cached state (profile change, config change)."""
+        self._renderer = None
+        self._col_id = None
+        self._config.reset_cache()
 
-def initialize_controller(mw: "AnkiQt", config: "ConfigManager") -> HeatmapController:
-    controller = HeatmapController(mw, config)
-    mw._review_heatmap = controller  # type: ignore
-    return controller
+    def invalidate_cache(self) -> None:
+        if self._renderer is not None:
+            self._renderer.invalidate_cache()

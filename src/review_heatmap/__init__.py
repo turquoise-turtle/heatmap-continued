@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,53 +26,55 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Initializes add-on components.
+Review Heatmap: visualises past and future review activity as a calendar
+heatmap on Anki's deck browser, deck overview and legacy statistics screens.
 """
 
-from ._version import __version__  # noqa: F401
+from ._version import __version__
+
+__all__ = ["__version__", "initialize_addon"]
 
 
-def initialize_addon():
-    """Initializes add-on after performing a few checks
-
-    Allows more fine-grained control over add-on execution, which can
-    be helpful when implementing workarounds for Anki bugs (e.g. the module
-    import bug present in all Anki 2.1 versions up to 2.1.14)
-    """
-
-    from .consts import ADDON
-
-    from .libaddon.consts import set_addon_properties
-
-    set_addon_properties(ADDON)
-
-    from .libaddon.debug import maybeStartDebugging
-
-    maybeStartDebugging()
-
+def initialize_addon() -> None:
     from aqt import mw
 
-    if not mw:
-        # TODO: better handling
+    if mw is None:  # imported outside Anki's GUI, e.g. by tests
         return
+
+    from .config import ConfigManager
+    from .controller import HeatmapController
+    from .finder import FinderExtension
+    from .gui.options import OptionsIntegration
+    from .log import set_debug
+    from .views import ViewManager
+    from .web_bridge import HeatmapBridge
 
     mw.addonManager.setWebExports(__name__, r"web.*")
 
-    from .config import config as config_manager
-    from .gui import initialize_qt_resources
-    from .gui.options import initialize_options
-    from .controller import initialize_controller
-    from .views import initialize_views
-    from .finder import initialize_finder
+    config = ConfigManager(mw)
+    set_debug(bool(config["local"].get("debug")))
 
-    initialize_qt_resources()
-    initialize_options()
+    controller = HeatmapController(mw, config)
+    views = ViewManager(mw, controller)
+    views.register()
 
-    controller = initialize_controller(mw, config_manager)
-    initialize_views(controller)
-    initialize_finder()
+    HeatmapBridge(mw, config, controller).register()
+    FinderExtension(mw, config).register()
+    OptionsIntegration(mw, config, views).register()
+
+    def on_config_saved() -> None:
+        set_debug(bool(config["local"].get("debug")))
+        views.refresh()
+
+    config.add_save_listener(on_config_saved)
+
+    # Kept for add-ons that reach for the controller through mw
+    mw._review_heatmap = controller  # type: ignore[attr-defined]
 
 
 initialize_addon()

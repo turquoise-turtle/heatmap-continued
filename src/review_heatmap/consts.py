@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,42 +26,31 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Addon-wide constants
+Add-on wide constants
 """
 
 from ._version import __version__
 
-try:
-    from .data.patrons import MEMBERS_CREDITED, MEMBERS_TOP
-except ImportError:
-    MEMBERS_CREDITED = MEMBERS_TOP = ()
-
-__all__ = ["ADDON"]
-
-# PROPERTIES DESCRIBING ADDON
-
 
 class ADDON:
-    """Class storing general add-on properties
-    Property names need to be all-uppercase with no leading underscores
-    """
-
     NAME = "Review Heatmap"
     MODULE = "review_heatmap"
-    REPO = "review-heatmap"
-    ID = "1771074083"
     VERSION = __version__
-    LICENSE = "GNU AGPLv3"
-    AUTHORS = (
-        {
-            "name": "Aristotelis P. (Glutanimate)",
-            "years": "2016-2022",
-            "contact": "https://glutanimate.com",
-        },
-    )
-    AUTHOR_MAIL = "ankiglutanimate@gmail.com"
+    LICENSE = "GNU AGPLv3 with additional terms"
+    # Required by the licence's additional terms (see LICENSE, section 3).
+    ORIGINAL_AUTHOR = "Aristotelis P. (Glutanimate)"
+    LINKS = {
+        "upstream": "https://github.com/glutanimate/review-heatmap/",
+        "support_original_author": "https://glutanimate.com/support-my-work/",
+        "patreon": "https://www.patreon.com/glutanimate",
+        "fork": "https://github.com/turquoise-turtle/anki-addons",
+        "help": "https://github.com/glutanimate/review-heatmap/wiki",
+    }
     LIBRARIES = (
         {
             "name": "d3.js",
@@ -80,22 +67,3 @@ class ADDON:
             "url": "https://github.com/glutanimate/cal-heatmap",
         },
     )
-    CONTRIBUTORS = ()
-    SPONSORS = ()
-    MEMBERS_CREDITED = MEMBERS_CREDITED
-    MEMBERS_TOP = MEMBERS_TOP
-    LINKS = {
-        "patreon": "https://www.patreon.com/glutanimate",
-        "bepatron": "https://www.patreon.com/bePatron?u=7522179",
-        "coffee": "http://ko-fi.com/glutanimate",
-        "description": "https://ankiweb.net/shared/info/{}".format(ID),
-        "rate": "https://ankiweb.net/shared/review/{}".format(ID),
-        "twitter": "https://twitter.com/glutanimate",
-        "youtube": "https://www.youtube.com/c/glutanimate",
-        "changelog": (
-            "https://github.com/glutanimate/{repo}/blob/main/CHANGELOG.md".format(
-                repo=REPO
-            )
-        ),
-        "help": "https://github.com/glutanimate/review-heatmap/wiki",
-    }

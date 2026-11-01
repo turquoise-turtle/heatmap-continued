@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,25 +26,25 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Heatmap and stats elements generation
+Heatmap and stats element generation
 """
 
 import json
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Tuple
 
-from aqt.main import AnkiQt
-
 from .activity import ActivityReport, ActivityReporter, StatsEntry, StatsType
-from .config import heatmap_modes
-from .libaddon.platform import PLATFORM
+from .config import heatmap_colors, heatmap_modes
 from .web_content import (
+    CSS_DARK_PREFIX,
     CSS_DISABLE_HEATMAP,
     CSS_DISABLE_STATS,
     CSS_MODE_PREFIX,
-    CSS_PLATFORM_PREFIX,
     CSS_THEME_PREFIX,
     CSS_VIEW_PREFIX,
     HTML_HEATMAP,
@@ -56,12 +54,9 @@ from .web_content import (
 )
 
 if TYPE_CHECKING:
-    from .libaddon.anki.configmanager import ConfigManager
+    from aqt.main import AnkiQt
 
-
-# workaround for list comprehensions not working in class-scope
-def _compress_levels(colors, indices):
-    return [colors[i] for i in indices]  # type: ignore
+    from .config import ConfigManager
 
 
 class HeatmapView(Enum):
@@ -71,69 +66,43 @@ class HeatmapView(Enum):
 
 
 class _StatsVisual(NamedTuple):
-    levels: Optional[List[Tuple[int, str]]]
+    levels: Optional[List[Tuple[float, str]]]
     unit: Optional[str]
 
 
 class _RenderCache(NamedTuple):
     html: str
-    arguments: Tuple[HeatmapView, Optional[int], Optional[int], bool]
-    deck: int
-    col_mod: int
+    key: tuple
+
+
+_CSS_COLORS: Tuple[str, ...] = ("rh-col0",) + tuple(f"rh-col{i}" for i in range(11, 21))
+
+
+def _levels(thresholds, indices) -> List[Tuple[float, str]]:
+    return list(zip(thresholds, (_CSS_COLORS[i] for i in indices)))
 
 
 class HeatmapRenderer:
-
-    _css_colors: Tuple[str, str, str, str, str, str, str, str, str, str, str] = (
-        "rh-col0",
-        "rh-col11",
-        "rh-col12",
-        "rh-col13",
-        "rh-col14",
-        "rh-col15",
-        "rh-col16",
-        "rh-col17",
-        "rh-col18",
-        "rh-col19",
-        "rh-col20",
-    )
-
     _stats_formatting: Dict[StatsType, _StatsVisual] = {
         StatsType.streak: _StatsVisual(
-            levels=list(
-                zip(
-                    (0, 14, 30, 90, 180, 365),
-                    _compress_levels(_css_colors, (0, 2, 4, 6, 9, 10)),
-                )
-            ),
-            unit="day",
+            levels=_levels((0, 14, 30, 90, 180, 365), (0, 2, 4, 6, 9, 10)), unit="day"
         ),
         StatsType.percentage: _StatsVisual(
-            levels=list(zip((0, 25, 50, 60, 70, 80, 85, 90, 95, 99), _css_colors)),
+            levels=_levels((0, 25, 50, 60, 70, 80, 85, 90, 95, 99), range(11)),
             unit=None,
         ),
         StatsType.cards: _StatsVisual(levels=None, unit="card"),
     }
 
     _dynamic_legend_factors: Tuple[float, ...] = (
-        0.125,
-        0.25,
-        0.5,
-        0.75,
-        1.0,
-        1.25,
-        1.5,
-        2.0,
-        4.0,
+        0.125, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 4.0,
     )
 
-    def __init__(self, mw: AnkiQt, reporter: ActivityReporter, config: "ConfigManager"):
-        self._mw: AnkiQt = mw
-        self._config: "ConfigManager" = config
-        self._reporter: ActivityReporter = reporter
-        self._render_cache: Optional[_RenderCache] = None
-
-    # TODO: Consider caching on the render-level
+    def __init__(self, mw: "AnkiQt", reporter: ActivityReporter, config: "ConfigManager"):
+        self._mw = mw
+        self._config = config
+        self._reporter = reporter
+        self._cache: Optional[_RenderCache] = None
 
     def render(
         self,
@@ -142,89 +111,85 @@ class HeatmapRenderer:
         limfcst: Optional[int] = None,
         current_deck_only: bool = False,
     ) -> str:
-        if self._render_cache and self._cache_still_valid(
-            view, limhist, limfcst, current_deck_only
-        ):
-            return self._render_cache.html
+        key = self._cache_key(view, limhist, limfcst, current_deck_only)
+        if self._cache and self._cache.key == key:
+            return self._cache.html
 
         prefs = self._config["profile"]
-
         report = self._reporter.get_report(
             limhist=limhist, limfcst=limfcst, current_deck_only=current_deck_only
         )
+        classes = self._css_classes(view)
+
         if report is None:
-            return HTML_MAIN_ELEMENT.format(content=HTML_INFO_NODATA, classes="")
+            html = HTML_MAIN_ELEMENT.format(
+                content=HTML_INFO_NODATA, classes=" ".join(classes)
+            )
+            self._cache = _RenderCache(html=html, key=key)
+            return html
 
         dynamic_legend = self._dynamic_legend(report.stats.activity_daily_avg.value)
-        stats_legend = self._stats_legend(dynamic_legend)
-        heatmap_legend = self._heatmap_legend(dynamic_legend)
 
-        classes = self._get_css_classes(view)
-
-        if prefs["display"][view.name]:
-            heatmap = self._generate_heatmap_elm(
-                report, heatmap_legend, current_deck_only
+        if prefs["display"].get(view.name, True):
+            heatmap = self._heatmap_element(
+                report, self._heatmap_legend(dynamic_legend), current_deck_only
             )
         else:
             heatmap = ""
             classes.append(CSS_DISABLE_HEATMAP)
 
-        if prefs["display"][view.name] or prefs["statsvis"]:
-            stats = self._generate_stats_elm(report, stats_legend)
+        if prefs["display"].get(view.name, True) or prefs.get("statsvis", True):
+            stats = self._stats_element(report, self._stats_legend(dynamic_legend))
         else:
             stats = ""
             classes.append(CSS_DISABLE_STATS)
 
         if not current_deck_only:
-            self._save_current_perf(report)
+            self._publish_performance(report)
 
-        render = HTML_MAIN_ELEMENT.format(
-            content=heatmap + stats, classes=" ".join(classes)
-        )
+        html = HTML_MAIN_ELEMENT.format(content=heatmap + stats, classes=" ".join(classes))
+        self._cache = _RenderCache(html=html, key=key)
+        return html
 
-        self._render_cache = _RenderCache(
-            html=render,
-            arguments=(view, limhist, limfcst, current_deck_only),
-            deck=self._mw.col.decks.current(),
-            col_mod=self._mw.col.mod,
-        )
+    def invalidate_cache(self) -> None:
+        self._cache = None
 
-        return render
+    # Helpers
 
-    def set_activity_reporter(self, reporter: ActivityReporter):
-        self._reporter = reporter
-
-    def invalidate_cache(self):
-        self._render_cache = None
-
-    def _cache_still_valid(self, view, limhist, limfcst, current_deck_only) -> bool:
-        # FIXME: for 2.1.28+
-        cache = self._render_cache
-        if not cache:
-            return False
-        col_unchanged = self._mw.col.mod == cache.col_mod  # type: ignore
+    def _cache_key(self, view, limhist, limfcst, current_deck_only) -> tuple:
+        col = self._mw.col
+        deck = col.decks.get_current_id() if current_deck_only else None
+        synced = self._config["synced"]
         return (
-            col_unchanged
-            and (view, limhist, limfcst, current_deck_only) == cache.arguments  # type: ignore
-            and (not current_deck_only or cache.deck == self._mw.col.decks.current())
+            view,
+            limhist,
+            limfcst,
+            current_deck_only,
+            deck,
+            col.mod,
+            self._reporter.today(),
+            synced.get("colors"),
+            synced.get("mode"),
+            synced.get("darkmode"),
         )
 
-    def _get_css_classes(self, view: HeatmapView) -> List[str]:
+    def _css_classes(self, view: HeatmapView) -> List[str]:
         conf = self._config["synced"]
-        classes = [
-            f"{CSS_PLATFORM_PREFIX}-{PLATFORM}",
-            f"{CSS_THEME_PREFIX}-{conf['colors']}",
-            f"{CSS_MODE_PREFIX}-{conf['mode']}",
+        theme = conf.get("colors") if conf.get("colors") in heatmap_colors else "lime"
+        mode = conf.get("mode") if conf.get("mode") in heatmap_modes else "year"
+        dark = conf.get("darkmode", "inverted")
+        return [
+            f"{CSS_THEME_PREFIX}-{theme}",
+            f"{CSS_MODE_PREFIX}-{mode}",
             f"{CSS_VIEW_PREFIX}-{view.name}",
+            f"{CSS_DARK_PREFIX}-{dark}",
         ]
-        return classes
 
-    def _generate_heatmap_elm(
-        self, report: ActivityReport, dynamic_legend, current_deck_only: bool
+    def _heatmap_element(
+        self, report: ActivityReport, legend: List[float], current_deck_only: bool
     ) -> str:
-        mode = heatmap_modes[self._config["synced"]["mode"]]
-
-        # TODO: pass on "whole" to govern browser link "deck:current" addition
+        mode_key = self._config["synced"].get("mode")
+        mode = heatmap_modes.get(mode_key, heatmap_modes["year"])
         options = {
             "domain": mode["domain"],
             "subdomain": mode["subDomain"],
@@ -234,73 +199,50 @@ class HeatmapRenderer:
             "stop": report.stop,
             "today": report.today,
             "offset": report.offset,
-            "legend": dynamic_legend,
+            "legend": legend,
             "whole": not current_deck_only,
         }
-
         return HTML_HEATMAP.format(
             options=json.dumps(options), data=json.dumps(report.activity)
         )
 
-    def _generate_stats_elm(self, data: ActivityReport, dynamic_legend) -> str:
-        dynamic_levels = self._get_dynamic_levels(dynamic_legend)
-        stats_formatting = self._stats_formatting
-
-        format_dict: Dict[str, str] = {}
-        stats_entry: StatsEntry
-
-        for name, stats_entry in data.stats._asdict().items():
-            stat_format = stats_formatting[stats_entry.type]
-
-            value = stats_entry.value
-            levels = stat_format.levels
-
-            if levels is None:
-                levels = dynamic_levels
-
-            css_class = self._css_colors[0]
+    def _stats_element(self, report: ActivityReport, legend: List[float]) -> str:
+        dynamic_levels = list(zip(legend, _CSS_COLORS))
+        values: Dict[str, str] = {}
+        entry: StatsEntry
+        for name, entry in report.stats._asdict().items():
+            formatting = self._stats_formatting[entry.type]
+            levels = formatting.levels if formatting.levels is not None else dynamic_levels
+            css_class = _CSS_COLORS[0]
             for threshold, css_class in levels:
-                if value <= threshold:
+                if entry.value <= threshold:
                     break
+            unit = formatting.unit
+            label = self._pluralise(entry.value, unit) if unit else str(entry.value)
+            values["class_" + name] = css_class
+            values["text_" + name] = label
+        return HTML_STREAK.format(**values)
 
-            unit = stat_format.unit
-            label = self._maybe_pluralize(value, unit) if unit else str(value)
-
-            format_dict["class_" + name] = css_class
-            format_dict["text_" + name] = label
-
-        return HTML_STREAK.format(**format_dict)
-
-    def _get_dynamic_levels(self, dynamic_legend) -> List[Tuple[int, str]]:
-        return list(zip(dynamic_legend, self._css_colors))
-
-    def _heatmap_legend(self, legend: List[float]) -> List[float]:
-        # Inverted negative legend for future dates. Allows us to
-        # implement different color schemes for past and future without
-        # having to modify cal-heatmap:
+    @staticmethod
+    def _heatmap_legend(legend: List[float]) -> List[float]:
+        # Negative mirror image for future dates lets the forecast use its own
+        # colours without modifying cal-heatmap.
         return [-i for i in legend[::-1]] + [0.0] + legend
 
-    def _stats_legend(self, legend: List[float]) -> List[float]:
+    @staticmethod
+    def _stats_legend(legend: List[float]) -> List[float]:
         return [0.0] + legend
 
     def _dynamic_legend(self, average: int) -> List[float]:
-        # set default average if average too low for informational levels
         avg = max(20, average)
-        return [fct * avg for fct in self._dynamic_legend_factors]
+        return [factor * avg for factor in self._dynamic_legend_factors]
 
     @staticmethod
-    def _maybe_pluralize(count: float, term: str) -> str:
-        return "{} {}{}".format(str(count), term, "s" if abs(count) > 1 else "")
+    def _pluralise(count: int, term: str) -> str:
+        return f"{count} {term}{'s' if abs(count) != 1 else ''}"
 
-    def _save_current_perf(self, activity_report: ActivityReport):
-        """
-        Store current performance in mw object
-
-        TODO: Make data like this available through a proper API
-
-        Just a quick hack that allows us to assess user performance from
-        other distant parts of the code / other add-ons
-        """
-        self._mw._hmStreakMax = activity_report.stats.streak_max.value  # type: ignore
-        self._mw._hmStreakCur = activity_report.stats.streak_cur.value  # type: ignore
-        self._mw._hmActivityDailyAvg = activity_report.stats.activity_daily_avg.value  # type: ignore
+    def _publish_performance(self, report: ActivityReport) -> None:
+        # Other add-ons read these attributes; keep them for compatibility.
+        self._mw._hmStreakMax = report.stats.streak_max.value  # type: ignore[attr-defined]
+        self._mw._hmStreakCur = report.stats.streak_cur.value  # type: ignore[attr-defined]
+        self._mw._hmActivityDailyAvg = report.stats.activity_daily_avg.value  # type: ignore[attr-defined]

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,168 +26,116 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-JS <-> PY communication
+JavaScript to Python communication
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import aqt
-from aqt.deckbrowser import DeckBrowser
-from aqt.main import AnkiQt
-from aqt.overview import Overview
 from aqt.qt import QWidget
-from aqt.stats import DeckStats
 
 from .config import heatmap_colors, heatmap_modes
-from .gui.contrib import invoke_contributions_dialog
-from .gui.extra import invoke_snanki
-from .gui.options import invoke_options_dialog
 
 if TYPE_CHECKING:
-    from .libaddon.anki.configmanager import ConfigManager
+    from aqt.main import AnkiQt
+
+    from .config import ConfigManager
+    from .controller import HeatmapController
 
 HANDLED_TYPE = Tuple[bool, Any]
-SUPPORTED_CONTEXT_TYPES = Union[DeckBrowser, Overview, DeckStats]
+
+_command_handlers: Dict[str, Callable] = {}
 
 
-class HeatmapBridge:
-
-    _identifier: str = "revhm"
-    _command_splitter: str = "_"
-    _payload_splitter: str = ":"
-
-    # TODO: new deck stats
-    _supported_contexts: Tuple[Type[DeckBrowser], Type[Overview], Type[DeckStats]] = (
-        DeckBrowser,
-        Overview,
-        DeckStats,
-    )
-
-    def __init__(self, mw: AnkiQt, config: "ConfigManager"):
-        self._mw: AnkiQt = mw
-        self._config: "ConfigManager" = config
-        self._command_handler: _CommandHandler = _CommandHandler(mw, config)
-
-    def register(self):
-        from aqt.gui_hooks import webview_did_receive_js_message
-
-        webview_did_receive_js_message.append(self.bridge)
-        # TODO: NewDeckStats
-        DeckStats._linkHandler = lambda context, url: self.bridge_legacy(context, url)  # type: ignore
-
-    def bridge(self, handled: HANDLED_TYPE, message: str, context: Any) -> HANDLED_TYPE:
-        if not message.startswith(self._identifier):
-            return handled
-        elif not any(isinstance(context, c) for c in self._supported_contexts):
-            return handled
-
-        ret = self._handle_message(message, context)
-
-        return (True, ret)
-
-    def bridge_legacy(
-        self, context: SUPPORTED_CONTEXT_TYPES, url: str, _old=None
-    ) -> Any:
-        if not url.startswith(self._identifier):
-            return None if not _old else _old(context, url)
-
-        return self._handle_message(url, context)
-
-    def _handle_message(self, message: str, context: SUPPORTED_CONTEXT_TYPES) -> Any:
-        identifier, command_and_payload = message.split(self._command_splitter, 1)
-
-        payload: Optional[str]
-
-        try:
-            # TODO: handle no command
-            command, payload = command_and_payload.split(self._payload_splitter, 1)
-        except ValueError:
-            command = command_and_payload
-            payload = None
-
-        # TODO: decode payload JSON
-
-        return self._command_handler(command, payload, context)
-
-
-COMMAND_HANDLER_TYPE = Callable[
-    ["_CommandHandler", Any, SUPPORTED_CONTEXT_TYPES], Optional[Any]
-]
-
-_command_handler_registry: Dict[str, COMMAND_HANDLER_TYPE] = {}
-
-
-def _register_command_handler(cmd: str):
-    def decorator(method: COMMAND_HANDLER_TYPE):
-        _command_handler_registry[cmd] = method
+def command(name: str):
+    def decorator(method):
+        _command_handlers[name] = method
+        return method
 
     return decorator
 
 
-class _CommandHandler:
+class HeatmapBridge:
+    """Handles ``revhm_<command>[:<payload>]`` messages sent by the web view."""
 
-    _handler_registry: Dict[str, COMMAND_HANDLER_TYPE]
+    identifier = "revhm"
 
-    def __init__(self, mw: "AnkiQt", config: "ConfigManager"):
-        self._mw: "AnkiQt" = mw
-        self._config: ConfigManager = config
+    def __init__(self, mw: "AnkiQt", config: "ConfigManager", controller: "HeatmapController"):
+        self._mw = mw
+        self._config = config
+        self._controller = controller
 
-    def __call__(
-        self,
-        command: str,
-        payload: Any,
-        context: Union[DeckBrowser, Overview, DeckStats],
-    ) -> Any:
-        handler = _command_handler_registry.get(command)
+    def register(self) -> None:
+        from aqt.gui_hooks import webview_did_receive_js_message
 
-        # TODO: handle no handler more expressively
-        if not handler:
-            return None
+        webview_did_receive_js_message.append(self.on_js_message)
 
-        return handler(self, payload, context)  # type: ignore
+    def on_js_message(self, handled: HANDLED_TYPE, message: str, context: Any) -> HANDLED_TYPE:
+        if not message.startswith(self.identifier + "_"):
+            return handled
+        _, command_and_payload = message.split("_", 1)
+        name, _, payload = command_and_payload.partition(":")
+        handler = _command_handlers.get(name)
+        if handler is None:
+            return handled
+        return (True, handler(self, payload or None, context))
 
-    @_register_command_handler("browse")
-    def browse(self, search: str, context: SUPPORTED_CONTEXT_TYPES) -> None:
-        browser = aqt.dialogs.open("Browser", self._mw)
-        browser.form.searchEdit.lineEdit().setText(search)
-        browser.onSearchActivated()
+    # Commands
 
-    @_register_command_handler("opts")
-    def opts(self, payload: None, context: SUPPORTED_CONTEXT_TYPES) -> None:
-        parent = self._get_context_parent(context)
-        invoke_options_dialog(parent=parent)
+    @command("browse")
+    def browse(self, search: Optional[str], context: Any) -> None:
+        if not search:
+            return
+        browser = aqt.dialogs.open("Browser", self._mw, search=(search,))
+        # Older/newer browsers differ in whether `search` is applied on reopen
+        if getattr(browser, "current_search", lambda: None)() != search:
+            try:
+                browser.search_for(search)
+            except AttributeError:
+                pass
 
-    @_register_command_handler("contrib")
-    def contrib(self, payload: Any, context: SUPPORTED_CONTEXT_TYPES) -> None:
-        parent = self._get_context_parent(context)
-        invoke_contributions_dialog(parent=parent)
+    @command("opts")
+    def options(self, payload: Any, context: Any) -> None:
+        from .gui.options import invoke_options_dialog
 
-    @_register_command_handler("modeswitch")
-    def cycle_hm_modes(self, payload: Any, context: SUPPORTED_CONTEXT_TYPES) -> None:
-        modes = list(heatmap_modes.keys())
-        cur_idx = modes.index(self._config["synced"]["mode"])
-        new_idx = (cur_idx + 1) % len(modes)
-        self._config["synced"]["mode"] = modes[new_idx]
-        self._config.save()
+        invoke_options_dialog(self._mw, self._config, parent=self._parent(context))
 
-    @_register_command_handler("themeswitch")
-    def cycle_hm_themes(self, payload: Any, context: SUPPORTED_CONTEXT_TYPES) -> None:
-        themes = list(heatmap_colors.keys())
-        cur_idx = themes.index(self._config["synced"]["colors"])
-        new_idx = (cur_idx + 1) % len(themes)
-        self._config["synced"]["colors"] = themes[new_idx]
-        self._config.save()
+    @command("about")
+    @command("contrib")
+    def about(self, payload: Any, context: Any) -> None:
+        from .gui.about import invoke_about_dialog
 
-    @_register_command_handler("snanki")
-    def invoke_snanki(self, payload: Any, context: SUPPORTED_CONTEXT_TYPES) -> None:
-        parent = self._get_context_parent(context)
-        invoke_snanki(parent=parent)
+        invoke_about_dialog(parent=self._parent(context))
+
+    @command("modeswitch")
+    def cycle_modes(self, payload: Any, context: Any) -> None:
+        self._cycle("mode", list(heatmap_modes))
+
+    @command("themeswitch")
+    def cycle_themes(self, payload: Any, context: Any) -> None:
+        self._cycle("colors", list(heatmap_colors))
+
+    @command("snanki")
+    def snanki(self, payload: Any, context: Any) -> None:
+        from .gui.snanki import invoke_snanki
+
+        invoke_snanki(self._mw, self._config, parent=self._parent(context))
 
     # Helpers
 
-    def _get_context_parent(self, context: SUPPORTED_CONTEXT_TYPES) -> QWidget:
-        if not isinstance(context, QWidget):
-            return self._mw
-        return context
+    def _cycle(self, key: str, choices) -> None:
+        synced = self._config["synced"]
+        try:
+            index = choices.index(synced.get(key))
+        except ValueError:
+            index = -1
+        synced[key] = choices[(index + 1) % len(choices)]
+        self._config.save()
+
+    def _parent(self, context: Any) -> QWidget:
+        return context if isinstance(context, QWidget) else self._mw

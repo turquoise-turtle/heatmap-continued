@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
-
-# Libaddon for Anki
+# Review Heatmap Add-on for Anki
 #
-# Copyright (C) 2018-2019  Aristotelis P. <https//glutanimate.com/>
+# Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version, with the additions
-# listed at the end of the license file that accompanied this program.
+# listed at the end of the accompanied license file.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,36 +19,26 @@
 # NOTE: This program is subject to certain additional terms pursuant to
 # Section 7 of the GNU Affero General Public License.  You should have
 # received a copy of these additional terms immediately following the
-# terms and conditions of the GNU Affero General Public License that
+# terms and conditions of the GNU Affero General Public License which
 # accompanied this program.
 #
 # If not, please request a copy through one of the means of contact
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Helpers for interacting with Anki's editor instances
+Platform information
 """
 
-# Handling async JS execution when saving editor content
+from anki.utils import is_mac, is_win
 
-def editorSaveThen(callback):
-    def onSaved(editor, *args, **kwargs):
-        # uses evalWithCallback internally:
-        editor.saveNow(lambda: callback(editor, *args, **kwargs))
-    return onSaved
-
-
-def widgetEditorSaveThen(callback):
-    def onSaved(widget, *args, **kwargs):
-        """[summary]
-        
-        Arguments:
-            callback {[type]} -- [description]
-            widget {Qt widget or widget} -- Qt object the editor is a member of
-            (e.g. Browser, AddCards, EditCurrent)
-        """
-        # uses evalWithCallback internally:
-        widget.editor.saveNow(lambda: callback(widget, *args, **kwargs))
-    return onSaved
+if is_mac:
+    PLATFORM = "mac"
+elif is_win:
+    PLATFORM = "win"
+else:
+    PLATFORM = "lin"

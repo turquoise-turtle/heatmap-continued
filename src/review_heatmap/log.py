@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
-
-# Libaddon for Anki
+# Review Heatmap Add-on for Anki
 #
-# Copyright (C) 2018-2022  Aristotelis P. <https//glutanimate.com/>
+# Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version, with the additions
-# listed at the end of the license file that accompanied this program.
+# listed at the end of the accompanied license file.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,26 +19,36 @@
 # NOTE: This program is subject to certain additional terms pursuant to
 # Section 7 of the GNU Affero General Public License.  You should have
 # received a copy of these additional terms immediately following the
-# terms and conditions of the GNU Affero General Public License that
+# terms and conditions of the GNU Affero General Public License which
 # accompanied this program.
 #
 # If not, please request a copy through one of the means of contact
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
-from aqt.qt import QDir, QIcon, QPixmap
+"""
+Logging
+
+Anki (23.10+) routes loggers named ``addon.<module>`` to a rotating file under
+the profile base folder (``logs/addons/<module>/``), so no vendored logging
+machinery is needed any more. Debug output is switched on through the add-on's
+config.json (``"debug": true``) or the options dialog.
+"""
+
+import logging
+
+from .consts import ADDON
+
+logger = logging.getLogger(f"addon.{ADDON.MODULE}")
 
 
-class AssetProvider:
-    def __init__(self, prefix: str, asset_root_path: str):
-        self._prefix = prefix
-        QDir.addSearchPath(prefix, asset_root_path)
+def set_debug(enabled: bool) -> None:
+    logger.setLevel(logging.DEBUG if enabled else logging.INFO)
 
-    def get_icon(self, relative_path: str):
-        icon = QIcon()
-        icon.addPixmap(self.get_pixmap(relative_path))
-        return icon
 
-    def get_pixmap(self, relative_path: str):
-        return QPixmap(f"{self._prefix}:{relative_path}")
+def is_debugging() -> bool:
+    return logger.isEnabledFor(logging.DEBUG)

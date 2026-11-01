@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,37 +26,83 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Shared datetime/timezone handling
+Shared date handling
+
+The add-on represents a calendar day as the Unix timestamp of 00:00 UTC on
+that date. This is what cal-heatmap expects once the web layer has converted
+it back into a local date, and it keeps all day arithmetic at exactly 86400
+seconds per day regardless of daylight-saving transitions.
+
+Which calendar day a review belongs to is decided in local wall-clock time
+after shifting back by the "next day starts at" rollover hour. Doing the shift
+after the local-time conversion (rather than on the raw timestamp, as earlier
+versions did) is what keeps reviews on the right day when the clocks change.
 """
 
-from typing import Union, TYPE_CHECKING
+import re
+from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Tuple, Union
 
 if TYPE_CHECKING:
     from anki.dbproxy import DBProxy
 
+DAY = 86400
 
-def daystart_epoch(
-    db: "DBProxy",
-    time_specifier: Union[str, int],
-    is_timestamp: bool = True,
-    offset: int = 0,
+_ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+
+
+def _rollover_modifier(rollover: int) -> str:
+    rollover = int(rollover) % 24
+    return f"'-{rollover} hours'"
+
+
+def day_start_epoch(
+    db: "DBProxy", when: Union[str, int, float] = "now", *, rollover: int = 0
 ) -> int:
-    """
-    Convert strftime date string into unix timestamp of 00:00 UTC
-    """
-    # Use db query instead of Python time-related modules to guarantee
-    # consistency with rest of activity data (also: Anki does not seem
-    # to ship 'pytz' by default, and 'calendar' might be removed from
-    # packaging at some point, as Anki's code does not directly depend
-    # on it)
-    offset_str = " '-{} hours', ".format(offset) if offset else ""
-    unixepoch = " 'unixepoch', " if is_timestamp else ""
+    """Midnight-UTC timestamp of the local (rollover-shifted) day that `when`
+    falls on. `when` is either the literal string "now" or a Unix timestamp
+    in seconds."""
+    if isinstance(when, (int, float)):
+        value, args = "?, 'unixepoch'", (int(when),)
+    elif when == "now":
+        value, args = "'now'", ()
+    else:
+        raise ValueError(f"unsupported time specifier: {when!r}")
+    cmd = (
+        "SELECT CAST(STRFTIME('%s', {value}, 'localtime', {rollover}, "
+        "'start of day') AS int)"
+    ).format(value=value, rollover=_rollover_modifier(rollover))
+    return int(db.scalar(cmd, *args))
 
-    cmd = """
-SELECT CAST(STRFTIME('%s', '{time_specifier}', {unixepoch} {offset}
-'localtime', 'start of day') AS int)""".format(
-        time_specifier=time_specifier, unixepoch=unixepoch, offset=offset_str
-    )
-    return db.scalar(cmd)
+
+def iso_date_to_day_epoch(iso_date: str) -> int:
+    """Midnight-UTC timestamp for a YYYY-MM-DD string."""
+    match = _ISO_DATE.match(iso_date)
+    if not match:
+        raise ValueError(f"not an ISO date: {iso_date!r}")
+    year, month, day = (int(g) for g in match.groups())
+    return int(datetime(year, month, day, tzinfo=timezone.utc).timestamp())
+
+
+def day_epoch_to_iso_date(day_epoch: int) -> str:
+    return datetime.fromtimestamp(day_epoch, tz=timezone.utc).date().isoformat()
+
+
+def revlog_id_range_for_date(iso_date: str, rollover: int) -> Tuple[int, int]:
+    """Half-open range of revlog ids (milliseconds) belonging to the given
+    local calendar date, honouring the rollover hour. Uses the C library's
+    local-time rules, the same ones SQLite's 'localtime' modifier uses, so the
+    result matches the heatmap's own day bucketing."""
+    match = _ISO_DATE.match(iso_date)
+    if not match:
+        raise ValueError(f"not an ISO date: {iso_date!r}")
+    year, month, day = (int(g) for g in match.groups())
+    rollover = int(rollover) % 24
+    start = datetime(year, month, day) + timedelta(hours=rollover)
+    end = start + timedelta(days=1)
+    return int(start.timestamp()) * 1000, int(end.timestamp()) * 1000

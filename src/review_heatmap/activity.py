@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Review Heatmap Add-on for Anki
 #
 # Copyright (C) 2016-2022  Aristotelis P. <https//glutanimate.com/>
@@ -28,44 +26,38 @@
 # listed here: <https://glutanimate.com/contact/>.
 #
 # Any modifications to this file must keep this entire header intact.
+#
+# This file is part of a modified version of Review Heatmap (2026). It is
+# not the original program; see README.md for the list of changes.
 
 """
-Components related to gathering and analyzing user activity
+Gathering and analysing review activity
 """
 
-import datetime
-import time
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Dict,
     List,
-    Literal,
     NamedTuple,
     Optional,
-    Sequence,
     Tuple,
 )
 
 from anki.utils import ids2str
-from anki.errors import NotFoundError
+
+from .errors import CollectionError
+from .log import is_debugging, logger
+from .times import DAY, day_start_epoch, iso_date_to_day_epoch
 
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.dbproxy import DBProxy
 
-from .errors import CollectionError
-from .libaddon.anki.configmanager import ConfigManager
-from .libaddon.debug import isDebuggingOn, logger
-from .times import daystart_epoch
-from .types import DeckId
+    from .config import ConfigManager
 
-# limit max forecast to 200 years to protect against invalid due dates
+# Limit forecasts to 200 years to protect against invalid due dates
 MAX_FORECAST_DAYS = 73000
-
-
-class ActivityType(Enum):
-    reviews = 0
 
 
 class StatsType(Enum):
@@ -76,47 +68,35 @@ class StatsType(Enum):
 
 class StatsEntry(NamedTuple):
     value: int
-    type: StatsType = StatsType.streak
-
-
-class StatsEntryStreak(StatsEntry):
-    value: int
-    type: StatsType = StatsType.streak
-
-
-class StatsEntryPercentage(StatsEntry):
-    value: int
-    type: StatsType = StatsType.percentage
-
-
-class StatsEntryCards(StatsEntry):
-    value: int
-    type: StatsType = StatsType.cards
+    type: StatsType
 
 
 class StatsReport(NamedTuple):
-    streak_max: StatsEntryStreak
-    streak_cur: StatsEntryStreak
-    pct_days_active: StatsEntryPercentage
-    activity_daily_avg: StatsEntryCards
+    streak_max: StatsEntry
+    streak_cur: StatsEntry
+    pct_days_active: StatsEntry
+    activity_daily_avg: StatsEntry
 
 
 class ActivityReport(NamedTuple):
-    activity: Dict[int, int]
-    start: Optional[int]
-    stop: Optional[int]
-    today: int
-    offset: int
+    activity: Dict[int, int]  # day (s) -> reviews (positive) or due (negative)
+    start: Optional[int]  # ms
+    stop: Optional[int]  # ms
+    today: int  # ms
+    offset: int  # rollover hour
     stats: StatsReport
 
 
-class ActivityReporter:
-    def __init__(self, col: "Collection", config: ConfigManager):
-        self._col: "Collection"
-        self._db: "DBProxy"
+DayCounts = List[Tuple[int, int]]
 
-        self._config: ConfigManager = config
-        self.set_collection(col)
+
+class ActivityReporter:
+    def __init__(self, col: "Collection", config: "ConfigManager"):
+        if col is None or col.db is None:
+            raise CollectionError("Anki collection and/or database is not ready")
+        self._col = col
+        self._db: "DBProxy" = col.db
+        self._config = config
 
     # Public API
     #########################################################################
@@ -125,429 +105,236 @@ class ActivityReporter:
         self,
         limhist: Optional[int] = None,
         limfcst: Optional[int] = None,
-        activity_type: ActivityType = ActivityType.reviews,
         current_deck_only: bool = False,
     ) -> Optional[ActivityReport]:
+        rollover = self.rollover
+        today = self.today(rollover)
+        history_start, forecast_stop = self._time_limits(today, limhist, limfcst)
+        deck_ids = self._deck_ids(current_deck_only)
 
-        history_start, forecast_stop = self._get_time_limits(limhist, limfcst)
+        history = self._cards_done(today, rollover, history_start, deck_ids)
+        if not history:
+            return None
+        forecast = self._cards_due(today, forecast_stop, deck_ids)
 
-        if activity_type == ActivityType.reviews:
-            history = self._cards_done(
-                start=history_start,
-                current_deck_only=current_deck_only,
-            )
-            forecast = self._cards_due(
-                start=self._today,
-                stop=forecast_stop,
-                current_deck_only=current_deck_only,
-            )
-
-            if not history:
-                return None
-
-            activity_report = self._get_activity(history=history, forecast=forecast)
-        else:
-            raise NotImplementedError(
-                "activity type {} not implemented".format(activity_type)
-            )
-
-        return activity_report
-
-    def set_collection(self, col: "Collection"):
-        # NOTE: Binding the collection is dangerous if we ever persist ActivityReporter
-        # across profile reloads, so allow outside callers to update the collection
-        # if necessary
-
-        if not col or not col.db:
-            raise CollectionError("Anki collection and/or database is not ready")
-
-        self._col = col
-        self._db = col.db
-
-    # Activity calculations
-    #########################################################################
-
-    # General
-
-    def _get_activity(
-        self,
-        history: List[Sequence[int]],
-        forecast: Optional[List[Sequence[int]]] = None,
-    ) -> ActivityReport:
-
-        first_day = history[0][0] if history else 0
-        last_day = forecast[-1][0] if forecast else 0
-
-        # Stats: cumulative activity and streaks
-
-        streak_max: int = 0
-        streak_cur: int = 0
-        streak_last: int = 0
-        current: int = 0
-        total: int = 0
-        idx: int = 0
-        next_timestamp: Optional[int]
-
-        for idx, item in enumerate(history):
-            current += 1
-            timestamp, activity = item
-
-            try:
-                next_timestamp = history[idx + 1][0]
-            except IndexError:  # last item
-                streak_last = current
-                next_timestamp = None
-
-            if timestamp + 86400 != next_timestamp:  # >1 day gap. streak over.
-                if current > streak_max:
-                    streak_max = current
-                current = 0
-
-            total += activity
-
-        days_learned: int = idx + 1
-        today = self._today
-
-        # Stats: current streak
-        if history[-1][0] in (today, today - 86400):
-            # last recorded date today or yesterday?
-            streak_cur = streak_last
-
-        # Stats: average count on days with activity
-        avg_cur = int(round(total / max(days_learned, 1)))
-
-        # Stats: percentage of days with activity
-        #
-        # NOTE: days_total is based on first recorded revlog entry, i.e. it is
-        # not the grand total of days since collection creation date / whatever
-        # history limits the user might have set. This value seems more
-        # desirable and motivating than the raw percentage of days learned
-        # in the date inclusion period.
-
-        days_total = (today - first_day) / 86400 + 1
-
-        if days_total == 1:
-            pdays = 100  # review history only extends to yesterday
-        else:
-            pdays = int(round((days_learned / days_total) * 100))
-
-        # Compose activity data
-        activity_dict: Dict[int, int] = dict(history + forecast)  # type: ignore
-        if history[-1][0] == today:  # history takes precedence for today
-            activity_dict[today] = history[-1][1]
-
-        # individual cal-heatmap dates need to be in ms:
-
-        return ActivityReport(
-            activity=activity_dict,
-            start=first_day * 1000 if first_day else None,
-            stop=last_day * 1000 if last_day else None,
-            today=today * 1000,
-            offset=self._offset,
-            stats=StatsReport(
-                streak_max=StatsEntryStreak(value=streak_max),
-                streak_cur=StatsEntryStreak(value=streak_cur),
-                pct_days_active=StatsEntryPercentage(value=pdays),
-                activity_daily_avg=StatsEntryCards(value=avg_cur),
-            ),
-        )
+        return self._compose(history, forecast, today, rollover)
 
     # Collection properties
     #########################################################################
 
     @property
-    def _sched_ver(self) -> Literal[1, 2, 3]:
+    def rollover(self) -> int:
+        """Hour at which the next day starts ("Next day starts at")."""
         try:
-            if self._col.v3_scheduler():
-                return 3
-        except AttributeError:
-            pass
-        try:
-            return self._col.sched_ver()
-        except AttributeError:
-            return self._col.schedVer()
+            return int(self._col.get_config("rollover", 4)) % 24
+        except Exception:  # defensive: unexpected config value
+            return 4
 
-    @property
-    def _offset(self) -> int:
-        """
-        Return daily scheduling cutoff time in hours
-        """
-        if self._sched_ver >= 2:
-            rollover = self._col.conf.get("rollover", 4)
-            return rollover
+    def today(self, rollover: Optional[int] = None) -> int:
+        if rollover is None:
+            rollover = self.rollover
+        return day_start_epoch(self._db, "now", rollover=rollover)
 
-        start_date = datetime.datetime.fromtimestamp(self._col.crt)
-        return start_date.hour
+    # Statistics
+    #########################################################################
 
-    @property
-    def _today(self) -> int:
-        """
-        Return unix epoch timestamp in seconds for today (00:00 UTC)
-        """
-        return daystart_epoch(self._db, "now", is_timestamp=False, offset=self._offset)
+    def _compose(
+        self, history: DayCounts, forecast: DayCounts, today: int, rollover: int
+    ) -> ActivityReport:
+        streak_max = streak_cur = streak_last = current = total = 0
+
+        for idx, (day, count) in enumerate(history):
+            current += 1
+            total += count
+            next_day = history[idx + 1][0] if idx + 1 < len(history) else None
+            if next_day != day + DAY:  # gap of more than one day: streak over
+                streak_max = max(streak_max, current)
+                if next_day is None:
+                    streak_last = current
+                current = 0
+
+        last_day = history[-1][0]
+        if last_day in (today, today - DAY):
+            streak_cur = streak_last
+
+        days_learned = len(history)
+        first_day = history[0][0]
+        avg_cur = int(round(total / max(days_learned, 1)))
+
+        # Percentage of days with activity since the first recorded review.
+        # Deliberately not based on the collection creation date: the first
+        # review is a more meaningful and motivating reference point.
+        days_total = max((today - first_day) // DAY + 1, 1)
+        pdays = min(100, int(round(days_learned / days_total * 100)))
+
+        activity: Dict[int, int] = dict(forecast)
+        activity.update(history)  # history takes precedence for today
+
+        stop = forecast[-1][0] if forecast else last_day
+
+        return ActivityReport(
+            activity=dict(sorted(activity.items())),  # seconds, as cal-heatmap expects
+            start=first_day * 1000,
+            stop=stop * 1000,
+            today=today * 1000,
+            offset=rollover,
+            stats=StatsReport(
+                streak_max=StatsEntry(streak_max, StatsType.streak),
+                streak_cur=StatsEntry(streak_cur, StatsType.streak),
+                pct_days_active=StatsEntry(pdays, StatsType.percentage),
+                activity_daily_avg=StatsEntry(avg_cur, StatsType.cards),
+            ),
+        )
 
     # Time limits
     #########################################################################
 
-    def _get_time_limits(
-        self, limhist: Optional[int] = None, limfcst: Optional[int] = None
-    ) -> Tuple[Optional[int], Optional[int]]:
-
+    def _time_limits(
+        self, today: int, limhist: Optional[int], limfcst: Optional[int]
+    ) -> Tuple[Optional[int], int]:
         conf = self._config["synced"]
 
-        history_start: Optional[int]
-        forecast_stop: Optional[int]
-
         if limhist is not None:
-            history_start = self._days_from_today(-limhist)
+            history_start: Optional[int] = today - limhist * DAY
         else:
-            history_start = self._get_conf_history_limit(
-                conf["limhist"], conf["limdate"]
+            history_start = self._configured_history_start(
+                today, conf.get("limhist") or 0, conf.get("limdate") or 0
             )
 
         if limfcst is not None:
-            forecast_stop = self._days_from_today(limfcst)
+            forecast_stop = today + limfcst * DAY
         else:
-            forecast_stop = self._get_conf_forecast_limit(conf["limfcst"])
+            forecast_stop = today + (conf.get("limfcst") or MAX_FORECAST_DAYS) * DAY
 
-        return (history_start, forecast_stop)
+        return history_start, forecast_stop
 
-    def _get_conf_history_limit(
-        self, limit_days: Optional[int], limit_date: Optional[int]
+    def _configured_history_start(
+        self, today: int, limit_days: int, limit_date
     ) -> Optional[int]:
-
-        if limit_days is None and limit_date is None:
-            return None
-
+        candidates: List[int] = []
         if limit_days:
-            limit_days_date = self._days_from_today(-limit_days)
-        else:
-            limit_days_date = 0
-
-        limit_date = daystart_epoch(self._db, str(limit_date)) if limit_date else None
-
-        # be defensive as col.crt can transiently be None (e.g. when importing colpkgs)
-        creation_time = getattr(self._col, "crt", None)
-
-        if (
-            not limit_date
-            or not creation_time
-            or limit_date == daystart_epoch(self._db, creation_time)
-        ):
-            # ignore zero value or default value
-            limit_date = 0
-        else:
-            limit_date = limit_date
-
-        # choose most restricting limit
-        return max(limit_days_date, limit_date) or None
-
-    def _get_conf_forecast_limit(self, limit_days: int) -> int:
-        limit_days = limit_days or MAX_FORECAST_DAYS
-        return self._days_from_today(limit_days)
-
-    def _days_from_today(self, days: int) -> int:
-        return self._today + 86400 * days
+            candidates.append(today - int(limit_days) * DAY)
+        if limit_date:
+            # Earlier versions stored a timestamp; newer ones an ISO date.
+            if isinstance(limit_date, str):
+                try:
+                    candidates.append(iso_date_to_day_epoch(limit_date))
+                except ValueError:
+                    pass
+            else:
+                candidates.append(day_start_epoch(self._db, int(limit_date)))
+        return max(candidates) if candidates else None
 
     # Deck limits
     #########################################################################
 
-    def _valid_decks(self, excluded: List[DeckId]) -> List[DeckId]:
-        deck_manager = self._col.decks
-        all_excluded = []
+    def _deck_ids(self, current_deck_only: bool) -> Optional[List[int]]:
+        """Deck ids to include, or None for no deck restriction."""
+        decks = self._col.decks
+        if current_deck_only:
+            return list(decks.deck_and_child_ids(decks.get_current_id()))
 
-        for did in excluded:
+        excluded_conf = self._config["synced"].get("limdecks") or []
+        if not excluded_conf:
+            return None
+
+        excluded = set()
+        for did in excluded_conf:
             try:
-                children = [d[1] for d in deck_manager.children(did)]
-            except NotFoundError:  # 2.1.28+
-                continue
-            all_excluded.extend(children)
+                excluded.update(decks.deck_and_child_ids(int(did)))
+            except Exception:  # deck no longer exists
+                excluded.add(int(did))
+        return [d.id for d in decks.all_names_and_ids() if d.id not in excluded]
 
-        all_excluded.extend(excluded)
+    @staticmethod
+    def _card_deck_condition(deck_ids: List[int]) -> str:
+        # Cards sitting in a filtered deck keep their home deck in `odid`, so
+        # both columns are checked (fixes reviews missing from the deck view).
+        ids = ids2str(deck_ids)
+        return f"(did IN {ids} OR odid IN {ids})"
 
-        return [d["id"] for d in self._col.decks.all() if d["id"] not in all_excluded]
-
-    def _did_limit(self, current_deck_only: bool) -> str:
-        excluded_dids: List[DeckId] = self._config["synced"]["limdecks"]
-        if not current_deck_only:
-            if excluded_dids:
-                dids = self._valid_decks(excluded_dids)
-            else:
-                dids = [d["id"] for d in self._col.decks.all()]
-        else:
-            dids = self.__get_active_deck_ids()
-        return ids2str(dids)
-
-    def _revlog_limit(self, current_deck_only: bool) -> str:
-        excluded_dids = self._config["synced"]["limdecks"]
-        ignore_deleted = self._config["synced"]["limcdel"]
-        if not current_deck_only:
-            if excluded_dids:
-                dids = self._valid_decks(excluded_dids)
-            elif ignore_deleted:
-                # Limiting log entries to cids with assigned dids automatically
-                # excludes deleted entries. In cases where we do not use a deck
-                # limit we specify the following instead:
-                return "cid IN (SELECT id FROM cards)"
-            else:
-                return ""
-        else:
-            dids = self.__get_active_deck_ids()
-        return "cid IN (SELECT id FROM cards WHERE did IN %s)" % ids2str(dids)
-
-    def __get_active_deck_ids(self) -> List["DeckId"]:
-        deck_manager = self._col.decks
-        try:
-            selected_deck = deck_manager.get_current_id()
-        except AttributeError:
-            selected_deck = deck_manager.selected()
-        active_deck_ids = deck_manager.deck_and_child_ids(selected_deck)
-        return active_deck_ids
-
-    # Other settings affecting included revlog entries
+    # Database queries
     #########################################################################
-
-    @property
-    def _ignore_rescheduled_entries(self) -> bool:
-        return self._config["synced"]["limresched"]
-
-    # Database queries for user activity
-    #########################################################################
-
-    def _cards_due(
-        self,
-        start: Optional[int] = None,
-        stop: Optional[int] = None,
-        current_deck_only: bool = False,
-    ) -> List[Sequence[int]]:
-        """[summary]
-
-        Args:
-            start (Optional[int], optional): [description]. Defaults to None.
-            stop (Optional[int], optional): [description]. Defaults to None.
-
-        Returns:
-            List[List[int]]: [[int, int]]
-        """
-        # start, stop: timestamps in seconds. Set to None for unlimited.
-        # start: inclusive; stop: exclusive
-
-        lim = ""
-        if start is not None:
-            lim += " AND day >= {}".format(start)
-        if stop is not None:
-            lim += " AND day < {}".format(stop)
-        cmd = """
-SELECT
-STRFTIME('%s', 'now', '-{} hours', 'localtime', 'start of day')
-    + (due - ?) * 86400
-AS day, -COUNT(), due -- negative to support heatmap legend
-FROM cards
-WHERE did IN {} AND queue IN (2,3)
-{}
-GROUP BY day ORDER BY day""".format(
-            self._offset, self._did_limit(current_deck_only), lim
-        )
-
-        res: List[Sequence[int]] = self._db.all(cmd, self._col.sched.today)
-
-        if isDebuggingOn():
-            self.__debug_cards_due(cmd, res)
-
-        return [i[:-1] for i in res]
 
     def _cards_done(
         self,
-        start: Optional[int] = None,
-        current_deck_only: bool = False,
-    ) -> List[Sequence[int]]:
-        """
-        start: timestamp in seconds to start reporting from
+        today: int,
+        rollover: int,
+        start: Optional[int],
+        deck_ids: Optional[List[int]],
+    ) -> DayCounts:
+        """Review counts per local day, as (day_epoch, count), ascending."""
+        conf = self._config["synced"]
+        conditions: List[str] = []
+        args: List[int] = []
 
-        Group revlog entries by day while taking local timezone and DST
-        settings into account. Return as unix timestamps of UTC day start
-        (00:00:00 UTC+0 of each day)
-
-        We perform the grouping here instead of passing the raw data on to
-        cal-heatmap because of performance reasons (user revlogs can easily
-        reach >100K entries).
-
-        Grouping-by-day needs to be timezone-aware to assign the recorded
-        timestamps to the correct day. For that reason we include the
-        'localtime' strftime modifier, even though it does come at a
-        performance penalty
-
-        Returns:
-            [[int, int]**]
-        """
-        offset = self._offset * 3600
-
-        lims = []
         if start is not None:
-            lims.append("day >= {}".format(start))
+            # Cheap primary-key range filter; the exact day cut-off is applied
+            # in Python below since the day expression can't use the index.
+            conditions.append("id >= ?")
+            args.append((start - DAY) * 1000)
 
-        if self._ignore_rescheduled_entries:
-            lims.append("ease >= 1")
+        if conf.get("limresched", True):
+            # Manual rescheduling and "forget" write revlog rows with ease 0
+            conditions.append("ease > 0")
 
-        deck_limit = self._revlog_limit(current_deck_only)
-        if deck_limit:
-            lims.append(deck_limit)
-
-        lim = "WHERE " + " AND ".join(lims) if lims else ""
-
-        cmd = """\
-SELECT CAST(STRFTIME('%s', id / 1000 - {}, 'unixepoch',
-                     'localtime', 'start of day') AS int)
-AS day, COUNT()
-FROM revlog {}
-GROUP BY day ORDER BY day""".format(
-            offset, lim
-        )
-
-        res = self._db.all(cmd)
-
-        if isDebuggingOn():
-            self.__debug_cards_done(cmd, res)
-
-        return res
-
-    def __debug_cards_due(self, cmd: str, res: List[Sequence[int]]):
-        sched_ver = self._sched_ver
-        if sched_ver >= 2:
-            offset = self._col.conf.get("rollover", 4)
-        else:
-            startDate = datetime.datetime.fromtimestamp(self._col.crt)
-            offset = startDate.hour
-
-        try:
-            day_cutoff = self._col.sched.day_cutoff
-        except AttributeError:
-            day_cutoff = self._col.sched.dayCutoff
-
-        logger.debug(cmd)
-        logger.debug(self._col.sched.today)
-        logger.debug("Scheduler version %s", sched_ver)
-        logger.debug("Day starts at setting: %s hours", offset)
-        logger.debug(
-            time.strftime(
-                "dayCutoff: %Y-%m-%d %H:%M",
-                time.localtime(day_cutoff),
+        if deck_ids is not None:
+            conditions.append(
+                "cid IN (SELECT id FROM cards WHERE "
+                + self._card_deck_condition(deck_ids)
+                + ")"
             )
-        )
-        logger.debug(
-            time.strftime("local now: %Y-%m-%d %H:%M", time.localtime(time.time()))
-        )
-        col_days = self._col.sched.today
-        logger.debug("Col days: %s", col_days)
-        if col_days is not None:
-            logger.debug(
-                time.strftime(
-                    "Col today: %Y-%m-%d",
-                    time.localtime(self._col.crt + 86400 * col_days),
-                )
-            )
-        logger.debug(res)
+        elif conf.get("limcdel", False):
+            conditions.append("cid IN (SELECT id FROM cards)")
 
-    def __debug_cards_done(self, cmd: str, res: List[Sequence[int]]):
-        logger.debug(cmd)
-        logger.debug(res)
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+        cmd = f"""
+SELECT CAST(STRFTIME('%s', id / 1000, 'unixepoch', 'localtime',
+                     '-{int(rollover) % 24} hours', 'start of day') AS int) AS day,
+       COUNT()
+FROM revlog {where}
+GROUP BY day ORDER BY day"""
+
+        rows = self._db.all(cmd, *args)
+        result = [
+            (int(day), int(count))
+            for day, count in rows
+            if (start is None or day >= start) and day <= today
+        ]
+
+        if is_debugging():
+            logger.debug("cards done query: %s args=%s", cmd, args)
+            logger.debug("cards done result (%d days): %s", len(result), result[-10:])
+        return result
+
+    def _cards_due(
+        self, today: int, stop: int, deck_ids: Optional[List[int]]
+    ) -> DayCounts:
+        """Due counts per day as (day_epoch, -count), ascending. Overdue cards
+        count towards today, like Anki's own forecast."""
+        sched_today = self._col.sched.today
+        conditions = ["queue IN (2, 3)"]
+        if deck_ids is not None:
+            conditions.append(self._card_deck_condition(deck_ids))
+        where = " AND ".join(conditions)
+
+        # Cards in filtered decks keep their real due day in `odue`.
+        cmd = f"""
+SELECT MAX(due_eff - ?, 0) AS days_ahead, COUNT()
+FROM (SELECT CASE WHEN odid != 0 THEN odue ELSE due END AS due_eff
+      FROM cards WHERE {where})
+WHERE due_eff < ?
+GROUP BY days_ahead ORDER BY days_ahead"""
+        rows = self._db.all(cmd, sched_today, sched_today + MAX_FORECAST_DAYS)
+
+        result: DayCounts = []
+        for days_ahead, count in rows:
+            day = today + int(days_ahead) * DAY
+            if day >= stop:
+                break
+            result.append((day, -int(count)))
+
+        if is_debugging():
+            logger.debug("cards due query: %s today=%s", cmd, sched_today)
+            logger.debug("cards due result (%d days): %s", len(result), result[:10])
+        return result

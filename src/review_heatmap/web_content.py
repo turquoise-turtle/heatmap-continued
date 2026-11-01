@@ -46,6 +46,7 @@ CSS_MODE_PREFIX = "rh-mode"
 CSS_THEME_PREFIX = "rh-theme"
 CSS_VIEW_PREFIX = "rh-view"
 CSS_DARK_PREFIX = "rh-dark"
+CSS_PANEL = "rh-panel"
 
 WEB_BASE = f"/_addons/{ADDON.MODULE}/web"
 
@@ -54,7 +55,7 @@ SCRIPT_URLS = (f"{WEB_BASE}/d3.min.js", f"{WEB_BASE}/anki-review-heatmap.js")
 HTML_MAIN_ELEMENT: str = (
     "".join(f'<script type="text/javascript" src="{url}"></script>\n' for url in SCRIPT_URLS)
     + f"""
-<div class="rh-container {CSS_PLATFORM_PREFIX}-{PLATFORM} {{classes}}">
+<div class="rh-container {CSS_PLATFORM_PREFIX}-{PLATFORM} {{classes}}" style="{{style}}">
 {{content}}
 </div>
 """

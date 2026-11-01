@@ -47,7 +47,8 @@ the stale collection references of earlier versions.
 """
 
 import copy
-from typing import TYPE_CHECKING, Any, Callable, Dict, List
+import re
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from .consts import ADDON
 
@@ -58,9 +59,28 @@ __all__ = [
     "heatmap_colors",
     "heatmap_modes",
     "dark_mode_styles",
+    "default_custom_colors",
     "config_defaults",
     "ConfigManager",
+    "normalise_colors",
 ]
+
+_HEX_COLOR = re.compile(r"^#?([0-9a-fA-F]{6})$")
+
+
+def normalise_colors(values) -> Optional[List[str]]:
+    """Return ten '#rrggbb' strings, or None if the input is not a valid palette."""
+    if isinstance(values, str):
+        values = re.split(r"[\s,;]+", values.strip())
+    if not isinstance(values, (list, tuple)) or len(values) != 10:
+        return None
+    result = []
+    for value in values:
+        match = _HEX_COLOR.match(str(value).strip())
+        if not match:
+            return None
+        result.append("#" + match.group(1).lower())
+    return result
 
 CONF_KEY = "heatmap"
 
@@ -75,7 +95,14 @@ heatmap_colors: Dict[str, Dict[str, str]] = {
     "teal": {"label": "Teal"},
     "slate": {"label": "Slate"},
     "mocha": {"label": "Mocha"},
+    "custom": {"label": "Custom"},
 }
+
+# Ten steps, light to dark, used by the "custom" palette until the user edits it
+default_custom_colors: List[str] = [
+    "#d6e685", "#bddb7a", "#a4d06f", "#8cc665", "#74ba58",
+    "#5cae4c", "#44a340", "#378f36", "#2a7b2c", "#1e6823",
+]
 
 heatmap_modes: Dict[str, Dict[str, Any]] = {
     "year": {
@@ -104,6 +131,8 @@ config_defaults: Dict[str, Dict[str, Any]] = {
         "colors": "lime",
         "mode": "year",
         "darkmode": "inverted",
+        "custom_colors": list(default_custom_colors),
+        "panel": False,
         "limdate": 0,
         "limhist": 0,
         "limfcst": 0,

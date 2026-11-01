@@ -186,14 +186,33 @@ def test_theme_cycle_and_options_dialog(mw):
     dialog.colors.setCurrentIndex(dialog.colors.findData("grape"))
     dialog.darkmode.setCurrentIndex(dialog.darkmode.findData("same"))
     dialog.limhist.setValue(100)
+    dialog.panel.setChecked(True)
     dialog.accept()
     pump(0.5)
     assert config["synced"]["colors"] == "grape"
     assert config["synced"]["darkmode"] == "same"
     assert mw.col.get_config("heatmap")["limhist"] == 100
-    wait_for_js(mw.web, "document.querySelectorAll('.rh-container.rh-theme-grape.rh-dark-same').length")
+    wait_for_js(mw.web, "document.querySelectorAll('.rh-container.rh-theme-grape.rh-dark-same.rh-panel').length")
     fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.cal-heatmap-container rect.q11')).fill")
     assert fill == "rgb(234, 217, 251)"  # grape --rh-c1
+    assert eval_js(mw.web, "getComputedStyle(document.querySelector('.rh-container')).backgroundColor") != "rgba(0, 0, 0, 0)"
+
+    # a custom palette is applied through inline custom properties
+    dialog = OptionsDialog(mw, config)
+    dialog.colors.setCurrentIndex(dialog.colors.findData("custom"))
+    dialog.custom_colors.setText("#010203 " * 9 + "#0a0b0c")
+    dialog.accept()
+    pump(0.5)
+    wait_for_js(mw.web, "document.querySelectorAll('.rh-container.rh-theme-custom').length")
+    fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.cal-heatmap-container rect.q11')).fill")
+    assert fill == "rgb(1, 2, 3)"
+
+    # an invalid custom palette is rejected and the dialog stays open
+    dialog = OptionsDialog(mw, config)
+    dialog.custom_colors.setText("#010203")
+    dialog.accept()
+    assert dialog.isVisible() is False or dialog.result() == 0
+    dialog.reject()
 
 
 def test_click_opens_browser_with_cards_of_that_day(mw, helper):

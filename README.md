@@ -24,7 +24,8 @@ Compatibility and robustness:
 
 Appearance:
 
-- Four new colour palettes: Grape, Teal, Slate and Mocha (upstream issues 88, 209).
+- Four new colour palettes: Grape, Teal, Slate and Mocha, plus a Custom palette where you paste your own ten colours (upstream issues 88, 209).
+- An optional translucent panel behind the heatmap for people using background-image add-ons (upstream issues 203, 93, 123).
 - A "Palette in dark mode" setting: inverted (lighter means more, the previous behaviour) or the same direction as light mode (upstream issues 59, 164, 215).
 - Palettes are defined with CSS custom properties, so adding or tweaking one is a single line in `web/review-heatmap.css` plus an entry in `config.py`.
 

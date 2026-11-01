@@ -39,12 +39,13 @@ from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Tuple
 
 from .activity import ActivityReport, ActivityReporter, StatsEntry, StatsType
-from .config import heatmap_colors, heatmap_modes
+from .config import heatmap_colors, heatmap_modes, normalise_colors
 from .web_content import (
     CSS_DARK_PREFIX,
     CSS_DISABLE_HEATMAP,
     CSS_DISABLE_STATS,
     CSS_MODE_PREFIX,
+    CSS_PANEL,
     CSS_THEME_PREFIX,
     CSS_VIEW_PREFIX,
     HTML_HEATMAP,
@@ -121,9 +122,11 @@ class HeatmapRenderer:
         )
         classes = self._css_classes(view)
 
+        style = self._inline_style()
+
         if report is None:
             html = HTML_MAIN_ELEMENT.format(
-                content=HTML_INFO_NODATA, classes=" ".join(classes)
+                content=HTML_INFO_NODATA, classes=" ".join(classes), style=style
             )
             self._cache = _RenderCache(html=html, key=key)
             return html
@@ -147,7 +150,9 @@ class HeatmapRenderer:
         if not current_deck_only:
             self._publish_performance(report)
 
-        html = HTML_MAIN_ELEMENT.format(content=heatmap + stats, classes=" ".join(classes))
+        html = HTML_MAIN_ELEMENT.format(
+            content=heatmap + stats, classes=" ".join(classes), style=style
+        )
         self._cache = _RenderCache(html=html, key=key)
         return html
 
@@ -171,19 +176,34 @@ class HeatmapRenderer:
             synced.get("colors"),
             synced.get("mode"),
             synced.get("darkmode"),
+            synced.get("panel"),
+            tuple(synced.get("custom_colors") or ()),
         )
+
+    def _inline_style(self) -> str:
+        """CSS custom properties for the user-defined palette."""
+        conf = self._config["synced"]
+        if conf.get("colors") != "custom":
+            return ""
+        colors = normalise_colors(conf.get("custom_colors"))
+        if colors is None:
+            return ""
+        return ";".join(f"--rh-c{i}:{c}" for i, c in enumerate(colors, start=1))
 
     def _css_classes(self, view: HeatmapView) -> List[str]:
         conf = self._config["synced"]
         theme = conf.get("colors") if conf.get("colors") in heatmap_colors else "lime"
         mode = conf.get("mode") if conf.get("mode") in heatmap_modes else "year"
         dark = conf.get("darkmode", "inverted")
-        return [
+        classes = [
             f"{CSS_THEME_PREFIX}-{theme}",
             f"{CSS_MODE_PREFIX}-{mode}",
             f"{CSS_VIEW_PREFIX}-{view.name}",
             f"{CSS_DARK_PREFIX}-{dark}",
         ]
+        if conf.get("panel"):
+            classes.append(CSS_PANEL)
+        return classes
 
     def _heatmap_element(
         self, report: ActivityReport, legend: List[float], current_deck_only: bool

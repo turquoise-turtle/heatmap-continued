@@ -59,6 +59,33 @@ def test_hidden_views_only_show_stats(mw, config, helper):
     assert "rh-disable-stats" in html and "Current streak:" not in html
 
 
+def test_custom_palette_and_panel(mw, config, helper):
+    cid = helper.add_card()
+    helper.review(cid, local_noon(0))
+    config["synced"]["colors"] = "custom"
+    config["synced"]["custom_colors"] = ["#%02x0000" % (i * 20) for i in range(10)]
+    config["synced"]["panel"] = True
+    html = HeatmapController(mw, config).render_for_view(HeatmapView.deckbrowser)
+    assert "rh-theme-custom" in html and "rh-panel" in html
+    assert 'style="--rh-c1:#000000;--rh-c2:#140000;' in html
+    assert "--rh-c10:#b40000" in html
+
+    config["synced"]["custom_colors"] = ["nonsense"]
+    html = HeatmapController(mw, config).render_for_view(HeatmapView.deckbrowser)
+    assert 'style=""' in html  # invalid palettes fall back to the stylesheet
+
+
+def test_normalise_colors():
+    from review_heatmap.config import normalise_colors
+
+    ten = ["#ABCDEF"] * 10
+    assert normalise_colors(ten) == ["#abcdef"] * 10
+    assert normalise_colors("abcdef, " * 9 + "abcdef") == ["#abcdef"] * 10
+    assert normalise_colors(["#abc"] * 10) is None
+    assert normalise_colors(["#abcdef"] * 9) is None
+    assert normalise_colors(None) is None
+
+
 def test_config_round_trip_and_defaults(mw, config):
     config["synced"]["colors"] = "teal"
     config["profile"]["display"]["stats"] = False

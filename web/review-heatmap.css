@@ -256,6 +256,19 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 .rh-container .rh-col19{color: var(--rh-l9)}
 .rh-container .rh-col20{color: var(--rh-l10)}
 
+/* Optional backing panel, for readability over background images */
+.rh-container.rh-panel {
+    display: inline-block;
+    padding: 0.75em 1.25em 1em;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.82);
+    color: #222;
+}
+:is(.night_mode, .night-mode) .rh-container.rh-panel {
+    background: rgba(20, 20, 20, 0.75);
+    color: #ddd;
+}
+
 /* Finished-deck (congratulations) screen host */
 .rh-host {
     text-align: center;

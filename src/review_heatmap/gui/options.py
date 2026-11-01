@@ -54,6 +54,7 @@ from aqt.qt import (
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPushButton,
@@ -65,7 +66,7 @@ from aqt.qt import (
 )
 from aqt.utils import askUser, tooltip
 
-from ..config import dark_mode_styles, heatmap_colors, heatmap_modes
+from ..config import dark_mode_styles, heatmap_colors, heatmap_modes, normalise_colors
 from ..consts import ADDON
 
 if TYPE_CHECKING:
@@ -131,6 +132,16 @@ class OptionsDialog(QDialog):
         self.colors.setToolTip("Shift-click the options button on the heatmap to cycle palettes")
         form.addRow("Colour palette:", self.colors)
 
+        self.custom_colors = QLineEdit()
+        self.custom_colors.setPlaceholderText("#d6e685 #bddb7a … ten colours, light to dark")
+        self.custom_colors.setToolTip(
+            "Ten hex colours from fewest to most reviews, separated by spaces or commas"
+        )
+        self.colors.currentIndexChanged.connect(
+            lambda _i: self.custom_colors.setEnabled(self.colors.currentData() == "custom")
+        )
+        form.addRow("Custom palette:", self.custom_colors)
+
         self.darkmode = _combo(dark_mode_styles)
         form.addRow("Palette in dark mode:", self.darkmode)
 
@@ -149,6 +160,9 @@ class OptionsDialog(QDialog):
 
         self.statsvis = QCheckBox("Show streak statistics even where the heatmap is hidden")
         form.addRow(self.statsvis)
+
+        self.panel = QCheckBox("Draw a translucent panel behind the heatmap (for background images)")
+        form.addRow(self.panel)
         return page
 
     def _data_tab(self) -> QWidget:
@@ -226,6 +240,9 @@ class OptionsDialog(QDialog):
         _select(self.colors, synced.get("colors", "lime"))
         _select(self.darkmode, synced.get("darkmode", "inverted"))
         _select(self.mode, synced.get("mode", "year"))
+        self.custom_colors.setText(" ".join(synced.get("custom_colors") or []))
+        self.custom_colors.setEnabled(self.colors.currentData() == "custom")
+        self.panel.setChecked(bool(synced.get("panel", False)))
 
         display = profile.get("display", {})
         self.show_deckbrowser.setChecked(display.get("deckbrowser", True))
@@ -268,6 +285,14 @@ class OptionsDialog(QDialog):
         synced = self.config["synced"]
         profile = self.config["profile"]
         local = self.config["local"]
+
+        custom_colors = normalise_colors(self.custom_colors.text())
+        if self.colors.currentData() == "custom" and custom_colors is None:
+            tooltip("The custom palette needs exactly ten hex colours, e.g. #d6e685", parent=self)
+            return
+        if custom_colors is not None:
+            synced["custom_colors"] = custom_colors
+        synced["panel"] = self.panel.isChecked()
 
         synced["colors"] = self.colors.currentData()
         synced["darkmode"] = self.darkmode.currentData()

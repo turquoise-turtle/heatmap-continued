@@ -6,7 +6,8 @@ First release of this fork, based on upstream Review Heatmap 1.0.1 (2022-05-24).
 
 ### Added
 
-- Four colour palettes: Grape, Teal, Slate, Mocha.
+- Four colour palettes: Grape, Teal, Slate, Mocha, and a Custom palette defined in the options dialog.
+- Optional translucent panel behind the heatmap for custom backgrounds.
 - "Palette in dark mode" setting (inverted, or same as light mode).
 - Heatmap on the finished-deck congratulations screen.
 - Headless test-suite covering the data layer, daylight-saving handling in nine time zones and the real Anki screens, run against Anki 25.09 and 26.09.

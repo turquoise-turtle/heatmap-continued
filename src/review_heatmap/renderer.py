@@ -179,6 +179,7 @@ class HeatmapRenderer:
             synced.get("darkmode"),
             synced.get("panel"),
             synced.get("activity"),
+            synced.get("habit"),
             synced.get("streak_min"),
             synced.get("streak_free_days"),
             tuple(synced.get("custom_colors") or ()),
@@ -239,17 +240,19 @@ class HeatmapRenderer:
         "pct_days_active": ("Days learned", "Percentage of days with activity since the first recorded day"),
         "streak_max": ("Longest streak", "Longest run of consecutive active days"),
         "streak_cur": ("Current streak", "Current run of consecutive active days"),
+        "habit": ("Habit strength", "Moving average of active days (half-life 13 days)"),
     }
 
     def _stats_element(self, report: ActivityReport, legend: List[float]) -> str:
         dynamic_levels = list(zip(legend, _CSS_COLORS))
         unit_name = activity_types[report.activity_type]["unit"]
+        show_habit = bool(self._config["synced"].get("habit"))
         entries: List[str] = []
         stats = report.stats._asdict()
         entry: Optional[StatsEntry]
-        for name in ("activity_daily_avg", "pct_days_active", "streak_max", "streak_cur"):
+        for name in ("activity_daily_avg", "pct_days_active", "streak_max", "streak_cur", "habit"):
             entry = stats[name]
-            if entry is None:
+            if entry is None or (name == "habit" and not show_habit):
                 continue
             formatting = self._stats_formatting[entry.type]
             levels = formatting.levels if formatting.levels is not None else dynamic_levels

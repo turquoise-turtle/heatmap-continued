@@ -77,6 +77,7 @@ class StatsReport(NamedTuple):
     streak_cur: StatsEntry
     pct_days_active: StatsEntry
     activity_daily_avg: StatsEntry
+    habit: Optional[StatsEntry] = None  # exponential moving average, optional
 
 
 class ActivityReport(NamedTuple):
@@ -87,6 +88,10 @@ class ActivityReport(NamedTuple):
     offset: int  # rollover hour
     stats: StatsReport
     activity_type: str = "reviews"
+
+
+# Half-life of the habit-strength moving average, in days
+HABIT_HALF_LIFE = 13
 
 
 
@@ -169,7 +174,7 @@ class ActivityReporter:
         deck_ids: Optional[List[int]] = None,
         activity_type: str = "reviews",
     ) -> ActivityReport:
-        streak_max, streak_cur = self._streaks(history, today, rollover, deck_ids)
+        streak_max, streak_cur, habit = self._streaks(history, today, rollover, deck_ids)
 
         total = sum(count for _, count in history)
         last_day = history[-1][0]
@@ -199,19 +204,24 @@ class ActivityReporter:
                 streak_cur=StatsEntry(streak_cur, StatsType.streak),
                 pct_days_active=StatsEntry(pdays, StatsType.percentage),
                 activity_daily_avg=StatsEntry(avg_cur, StatsType.cards),
+                habit=StatsEntry(habit, StatsType.percentage),
             ),
             activity_type=activity_type,
         )
 
     def _streaks(
         self, history: DayCounts, today: int, rollover: int, deck_ids: Optional[List[int]]
-    ) -> Tuple[int, int]:
-        """Longest and current streak.
+    ) -> Tuple[int, int, int]:
+        """Longest streak, current streak and habit strength (percent).
 
         A day counts towards a streak when it has at least `streak_min`
         reviews. With `streak_free_days` on, a day without reviews on which no
         card was due neither extends nor breaks a streak. Today never breaks
         the current streak, since it is still in progress.
+
+        Habit strength is an exponential moving average of active days with a
+        half-life of HABIT_HALF_LIFE days, so it rises towards 100% with
+        sustained daily activity and decays gently through missed days.
         """
         conf = self._config["synced"]
         threshold = max(1, int(conf.get("streak_min") or 1))
@@ -222,6 +232,8 @@ class ActivityReporter:
         )
         counts = dict(history)
         first_day = history[0][0]
+        decay = 0.5 ** (1 / HABIT_HALF_LIFE)
+        habit = 0.0
 
         due_days: set = set()
         if free_days_enabled:
@@ -233,6 +245,7 @@ class ActivityReporter:
         run = streak_max = 0
         for day in range(first_day, today, DAY):
             active = counts.get(day, 0) >= threshold
+            habit = decay * habit + (1 - decay) * (1 if active else 0)
             if active:
                 run += 1
                 streak_max = max(streak_max, run)
@@ -243,7 +256,8 @@ class ActivityReporter:
         if counts.get(today, 0) >= threshold:
             run += 1
             streak_max = max(streak_max, run)
-        return streak_max, run
+            habit = decay * habit + (1 - decay)
+        return streak_max, run, int(round(habit * 100))
 
     def _days_with_cards_due(
         self, days: List[int], rollover: int, deck_ids: Optional[List[int]]

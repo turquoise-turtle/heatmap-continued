@@ -140,6 +140,7 @@ config_defaults: Dict[str, Dict[str, Any]] = {
         "colors": "lime",
         "mode": "year",
         "activity": "reviews",
+        "habit": False,
         "darkmode": "inverted",
         "custom_colors": list(default_custom_colors),
         "panel": False,

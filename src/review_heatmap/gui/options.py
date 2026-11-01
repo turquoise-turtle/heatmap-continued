@@ -171,6 +171,9 @@ class OptionsDialog(QDialog):
         self.statsvis = QCheckBox("Show streak statistics even where the heatmap is hidden")
         form.addRow(self.statsvis)
 
+        self.habit = QCheckBox("Show habit strength (moving average of active days)")
+        form.addRow(self.habit)
+
 
         self.panel = QCheckBox("Draw a translucent panel behind the heatmap (for background images)")
         form.addRow(self.panel)
@@ -263,6 +266,7 @@ class OptionsDialog(QDialog):
         local = self.config["local"]
 
         _select(self.activity, synced.get("activity", "reviews"))
+        self.habit.setChecked(bool(synced.get("habit", False)))
         _select(self.colors, synced.get("colors", "lime"))
         _select(self.darkmode, synced.get("darkmode", "inverted"))
         _select(self.mode, synced.get("mode", "year"))
@@ -325,6 +329,7 @@ class OptionsDialog(QDialog):
         synced["streak_free_days"] = self.streak_free_days.isChecked()
 
         synced["activity"] = self.activity.currentData()
+        synced["habit"] = self.habit.isChecked()
         synced["colors"] = self.colors.currentData()
         synced["darkmode"] = self.darkmode.currentData()
         synced["mode"] = self.mode.currentData()

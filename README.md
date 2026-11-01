@@ -32,6 +32,7 @@ Appearance:
 Activity types (Appearance → "Activity shown", or Alt-click the today button):
 
 - Reviews (the default, with the due-card forecast), time spent in minutes (upstream issue 26, pull request 62), new cards learned (issue 124) and cards added (issue 11). Clicking a day opens the matching cards in the browser for every type.
+- An optional "Habit strength" statistic: a moving average of active days with a 13-day half-life (upstream issue 84, pull request 170).
 
 Streaks:
 

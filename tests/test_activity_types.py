@@ -1,6 +1,7 @@
 """
 Activity types other than reviews: time spent (upstream issue 26, pull
-request 62), new cards learned (issue 124) and cards added (issue 11).
+request 62), new cards learned (issue 124) and cards added (issue 11), plus
+the optional habit-strength statistic (issue 84, pull request 170).
 """
 
 from datetime import timedelta
@@ -95,10 +96,24 @@ def test_render_passes_activity_options_and_labels(mw, config, helper):
     config["synced"]["activity"] = "added"
     html = HeatmapController(mw, config).render_for_view(HeatmapView.deckbrowser)
     assert '"activity": "added"' in html and '"token": "aid"' in html and '"verb": "added"' in html
-    assert "Days active:" in html
+    assert "Days active:" in html and "Habit strength" not in html
 
     config["synced"]["activity"] = "time"
+    config["synced"]["habit"] = True
     html = HeatmapController(mw, config).render_for_view(HeatmapView.deckbrowser)
     assert '"unit": "minute"' in html
     assert "Daily average:" in html and ">1 minute<" in html
+    assert "Habit strength:" in html
 
+
+
+def test_habit_strength_rises_and_decays(reporter, helper, config):
+    cid = helper.add_card()
+    for days_ago in range(0, 60):
+        helper.review(cid, local_noon(days_ago))
+    strong = reporter.get_report().stats.habit.value
+    assert strong >= 95
+    # the card was first learned 59 days ago and never again: a lapsed habit
+    config["synced"]["activity"] = "learned"
+    weak = reporter.get_report().stats.habit.value
+    assert weak < 10

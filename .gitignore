@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+src/review_heatmap/meta.json
+src/review_heatmap/user_files/
+.DS_Store

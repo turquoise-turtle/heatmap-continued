@@ -406,6 +406,11 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 .rh-container .rh-col19{color: var(--rh-l9)}
 .rh-container .rh-col20{color: var(--rh-l10)}
 
+/* Finished-deck (congratulations) screen host */
+.rh-host {
+    text-align: center;
+    margin-top: 1.5em;
+}
 `;/*! cal-heatmap v3.6.3.2-anki2150 (2022)
  *  ---------------------------------------------
  *  Fork of Cal-HeatMap for use in the Anki add-on Review Heatmap

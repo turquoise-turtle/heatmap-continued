@@ -43,12 +43,14 @@ from aqt import gui_hooks
 
 from .log import logger
 from .renderer import HeatmapView
+from .web_content import js_inject
 
 if TYPE_CHECKING:
     from aqt.deckbrowser import DeckBrowser, DeckBrowserContent
     from aqt.main import AnkiQt
     from aqt.overview import Overview, OverviewContent
     from aqt.stats import DeckStats
+    from aqt.webview import AnkiWebView
 
     from .controller import HeatmapController
 
@@ -65,6 +67,7 @@ class ViewManager:
     def register(self) -> None:
         gui_hooks.deck_browser_will_render_content.append(self.on_deck_browser_render)
         gui_hooks.overview_will_render_content.append(self.on_overview_render)
+        gui_hooks.webview_did_inject_style_into_page.append(self.on_style_injected)
         gui_hooks.stats_dialog_old_will_show.append(self.on_legacy_stats_show)
         CollectionStats.dueGraph = wrap(  # type: ignore[method-assign]
             CollectionStats.dueGraph, self.on_legacy_stats_due_graph, "around"
@@ -85,6 +88,18 @@ class ViewManager:
         html = self._render_safely(HeatmapView.overview, current_deck_only=True)
         if html:
             content.table += html
+
+    # Congratulations screen (deck finished). Anki renders it with Svelte and
+    # offers no content hook, so the heatmap is appended after the page loads.
+
+    def on_style_injected(self, webview: "AnkiWebView") -> None:
+        if webview is not self._mw.web or self._mw.state != "overview":
+            return
+        if not webview.url().path().rstrip("/").endswith("congrats"):
+            return
+        html = self._render_safely(HeatmapView.overview, current_deck_only=True)
+        if html:
+            webview.eval(js_inject(html, ".congrats"))
 
     # Legacy statistics window (shift-click on Stats)
 

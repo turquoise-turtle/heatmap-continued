@@ -34,6 +34,8 @@
 Static web components and templates
 """
 
+import json
+
 from .consts import ADDON
 from .platform import PLATFORM
 
@@ -113,3 +115,49 @@ HTML_STREAK: str = """
 HTML_INFO_NODATA: str = """
 No activity data to show (<span class="linkspan" onclick='pycmd("revhm_opts");'>options</span>).
 """
+
+# Injects rendered heatmap HTML into a page we do not control (the Svelte
+# "congratulations" screen shown when a deck is finished). innerHTML never
+# runs scripts, so external scripts are loaded in order and inline ones are
+# evaluated afterwards.
+JS_INJECT_TEMPLATE: str = """
+(function () {
+    if (document.querySelector(".rh-container")) { return; }
+    var html = %(html)s;
+    var attempts = 0;
+    function mount() {
+        var anchor = document.querySelector(%(anchor)s);
+        if (!anchor) {
+            if (attempts++ < 60) { return setTimeout(mount, 50); }
+            anchor = document.body;
+        }
+        var host = document.createElement("div");
+        host.className = "rh-host";
+        host.innerHTML = html;
+        var scripts = Array.prototype.slice.call(host.querySelectorAll("script"));
+        scripts.forEach(function (s) { s.parentNode.removeChild(s); });
+        anchor.appendChild(host);
+        (function runNext(i) {
+            if (i >= scripts.length) { return; }
+            var src = scripts[i].getAttribute("src");
+            if (src) {
+                var el = document.createElement("script");
+                el.src = src;
+                el.onload = function () { runNext(i + 1); };
+                document.head.appendChild(el);
+            } else {
+                try { (0, eval)(scripts[i].textContent); } catch (e) { console.error(e); }
+                runNext(i + 1);
+            }
+        })(0);
+    }
+    mount();
+})();
+"""
+
+
+def js_inject(html: str, anchor_selector: str) -> str:
+    return JS_INJECT_TEMPLATE % {
+        "html": json.dumps(html),
+        "anchor": json.dumps(anchor_selector),
+    }

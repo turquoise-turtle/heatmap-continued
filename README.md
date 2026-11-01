@@ -29,6 +29,11 @@ Appearance:
 - A "Palette in dark mode" setting: inverted (lighter means more, the previous behaviour) or the same direction as light mode (upstream issues 59, 164, 215).
 - Palettes are defined with CSS custom properties, so adding or tweaking one is a single line in `web/review-heatmap.css` plus an entry in `config.py`.
 
+Streaks:
+
+- "Minimum for a streak day": days with fewer reviews than this do not count towards a streak (upstream issue 188).
+- "Days with no reviews and nothing due do not break the streak": whether cards were due is reconstructed from the review log, so it is an approximation, but it stops a quiet deck from resetting your streak (upstream issues 82, 129, pull request 131).
+
 Removed: the Patreon contributions dialog (replaced by an About dialog that keeps the required attribution), the unused hotkey settings, and the Qt Designer forms. The Snanki easter egg is still there.
 
 ## Installation

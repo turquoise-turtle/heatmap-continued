@@ -186,11 +186,13 @@ def test_theme_cycle_and_options_dialog(mw):
     dialog.colors.setCurrentIndex(dialog.colors.findData("grape"))
     dialog.darkmode.setCurrentIndex(dialog.darkmode.findData("same"))
     dialog.limhist.setValue(100)
+    dialog.streak_min.setValue(2)
     dialog.panel.setChecked(True)
     dialog.accept()
     pump(0.5)
     assert config["synced"]["colors"] == "grape"
     assert config["synced"]["darkmode"] == "same"
+    assert config["synced"]["streak_min"] == 2
     assert mw.col.get_config("heatmap")["limhist"] == 100
     wait_for_js(mw.web, "document.querySelectorAll('.rh-container.rh-theme-grape.rh-dark-same.rh-panel').length")
     fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.cal-heatmap-container rect.q11')).fill")

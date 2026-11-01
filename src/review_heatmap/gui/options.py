@@ -193,6 +193,20 @@ class OptionsDialog(QDialog):
         date_row.addStretch()
         form.addRow(date_row)
 
+        streaks = QGroupBox("Streaks")
+        streaks_form = QFormLayout(streaks)
+        self.streak_min = QSpinBox()
+        self.streak_min.setRange(1, 100000)
+        self.streak_min.setSuffix(" reviews")
+        self.streak_min.setToolTip("Days with fewer reviews than this do not count towards a streak")
+        streaks_form.addRow("Minimum for a streak day:", self.streak_min)
+        self.streak_free_days = QCheckBox("Days with no reviews and nothing due do not break the streak")
+        self.streak_free_days.setToolTip(
+            "Whether cards were due is reconstructed from the review log, so it is an approximation"
+        )
+        streaks_form.addRow(self.streak_free_days)
+        form.addRow(streaks)
+
         self.limcdel = QCheckBox("Exclude reviews of cards that have since been deleted")
         form.addRow(self.limcdel)
         self.limresched = QCheckBox("Exclude manual reschedules and 'forget' from history")
@@ -243,6 +257,8 @@ class OptionsDialog(QDialog):
         self.custom_colors.setText(" ".join(synced.get("custom_colors") or []))
         self.custom_colors.setEnabled(self.colors.currentData() == "custom")
         self.panel.setChecked(bool(synced.get("panel", False)))
+        self.streak_min.setValue(max(1, int(synced.get("streak_min") or 1)))
+        self.streak_free_days.setChecked(bool(synced.get("streak_free_days", False)))
 
         display = profile.get("display", {})
         self.show_deckbrowser.setChecked(display.get("deckbrowser", True))
@@ -293,6 +309,8 @@ class OptionsDialog(QDialog):
         if custom_colors is not None:
             synced["custom_colors"] = custom_colors
         synced["panel"] = self.panel.isChecked()
+        synced["streak_min"] = self.streak_min.value()
+        synced["streak_free_days"] = self.streak_free_days.isChecked()
 
         synced["colors"] = self.colors.currentData()
         synced["darkmode"] = self.darkmode.currentData()

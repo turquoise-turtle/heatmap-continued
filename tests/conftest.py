@@ -80,17 +80,21 @@ class Helper:
         self.col.add_note(note, did)
         return note.card_ids()[0]
 
-    def review(self, cid: int, when: datetime, ease: int = 3, rev_id: Optional[int] = None) -> int:
-        """Insert a revlog row for a local wall-clock time (naive datetime)."""
+    def review(
+        self, cid: int, when: datetime, ease: int = 3, rev_id: Optional[int] = None, ivl: int = 1
+    ) -> int:
+        """Insert a revlog row for a local wall-clock time (naive datetime).
+        `ivl` is the new interval in days, i.e. the card falls due `ivl` days later."""
         rev_id = rev_id or int(when.timestamp() * 1000)
         while self.col.db.scalar("select 1 from revlog where id = ?", rev_id):
             rev_id += 1
         self.col.db.execute(
             "insert into revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type)"
-            " values (?, ?, -1, ?, 1, 1, 2500, 5000, 1)",
+            " values (?, ?, -1, ?, ?, 1, 2500, 5000, 1)",
             rev_id,
             cid,
             ease,
+            ivl,
         )
         return rev_id
 

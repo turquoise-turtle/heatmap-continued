@@ -133,6 +133,8 @@ config_defaults: Dict[str, Dict[str, Any]] = {
         "darkmode": "inverted",
         "custom_colors": list(default_custom_colors),
         "panel": False,
+        "streak_min": 1,
+        "streak_free_days": False,
         "limdate": 0,
         "limhist": 0,
         "limfcst": 0,

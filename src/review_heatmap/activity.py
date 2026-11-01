@@ -34,6 +34,7 @@
 Gathering and analysing review activity
 """
 
+from bisect import bisect_left
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -117,7 +118,7 @@ class ActivityReporter:
             return None
         forecast = self._cards_due(today, forecast_stop, deck_ids)
 
-        return self._compose(history, forecast, today, rollover)
+        return self._compose(history, forecast, today, rollover, deck_ids)
 
     # Collection properties
     #########################################################################
@@ -139,24 +140,17 @@ class ActivityReporter:
     #########################################################################
 
     def _compose(
-        self, history: DayCounts, forecast: DayCounts, today: int, rollover: int
+        self,
+        history: DayCounts,
+        forecast: DayCounts,
+        today: int,
+        rollover: int,
+        deck_ids: Optional[List[int]] = None,
     ) -> ActivityReport:
-        streak_max = streak_cur = streak_last = current = total = 0
+        streak_max, streak_cur = self._streaks(history, today, rollover, deck_ids)
 
-        for idx, (day, count) in enumerate(history):
-            current += 1
-            total += count
-            next_day = history[idx + 1][0] if idx + 1 < len(history) else None
-            if next_day != day + DAY:  # gap of more than one day: streak over
-                streak_max = max(streak_max, current)
-                if next_day is None:
-                    streak_last = current
-                current = 0
-
+        total = sum(count for _, count in history)
         last_day = history[-1][0]
-        if last_day in (today, today - DAY):
-            streak_cur = streak_last
-
         days_learned = len(history)
         first_day = history[0][0]
         avg_cur = int(round(total / max(days_learned, 1)))
@@ -185,6 +179,90 @@ class ActivityReporter:
                 activity_daily_avg=StatsEntry(avg_cur, StatsType.cards),
             ),
         )
+
+    def _streaks(
+        self, history: DayCounts, today: int, rollover: int, deck_ids: Optional[List[int]]
+    ) -> Tuple[int, int]:
+        """Longest and current streak.
+
+        A day counts towards a streak when it has at least `streak_min`
+        reviews. With `streak_free_days` on, a day without reviews on which no
+        card was due neither extends nor breaks a streak. Today never breaks
+        the current streak, since it is still in progress.
+        """
+        conf = self._config["synced"]
+        threshold = max(1, int(conf.get("streak_min") or 1))
+        free_days_enabled = bool(conf.get("streak_free_days"))
+        counts = dict(history)
+        first_day = history[0][0]
+
+        due_days: set = set()
+        if free_days_enabled:
+            gap_days = [
+                day for day in range(first_day, today, DAY) if counts.get(day, 0) < threshold
+            ]
+            due_days = self._days_with_cards_due(gap_days, rollover, deck_ids)
+
+        run = streak_max = 0
+        for day in range(first_day, today, DAY):
+            if counts.get(day, 0) >= threshold:
+                run += 1
+                streak_max = max(streak_max, run)
+            elif free_days_enabled and day not in due_days:
+                continue
+            else:
+                run = 0
+        if counts.get(today, 0) >= threshold:
+            run += 1
+            streak_max = max(streak_max, run)
+        return streak_max, run
+
+    def _days_with_cards_due(
+        self, days: List[int], rollover: int, deck_ids: Optional[List[int]]
+    ) -> set:
+        """Subset of `days` on which at least one card was due, reconstructed
+        from the review log: a review with interval N makes its card due N
+        days later, and it stays due until the card's next review."""
+        if not days:
+            return set()
+        condition = ""
+        if deck_ids is not None:
+            condition = (
+                " AND cid IN (SELECT id FROM cards WHERE "
+                + self._card_deck_condition(deck_ids)
+                + ")"
+            )
+        rows = self._db.all(
+            f"""
+SELECT cid, CAST(STRFTIME('%s', id / 1000, 'unixepoch', 'localtime',
+                          '-{int(rollover) % 24} hours', 'start of day') AS int), ivl
+FROM revlog WHERE ivl > 0{condition}
+ORDER BY cid, id"""
+        )
+
+        wanted = sorted(set(days))
+        covered = [False] * len(wanted)
+        previous_cid = None
+        pending_due: Optional[int] = None
+
+        def mark(due_from: int, due_until: Optional[int]) -> None:
+            start = bisect_left(wanted, due_from)
+            stop = bisect_left(wanted, due_until) if due_until is not None else len(wanted)
+            for i in range(start, stop):
+                covered[i] = True
+
+        for cid, day, ivl in rows:
+            if cid != previous_cid:
+                if pending_due is not None:
+                    mark(pending_due, None)
+                previous_cid = cid
+            elif pending_due is not None:
+                mark(pending_due, day)
+            pending_due = int(day) + int(ivl) * DAY
+        if pending_due is not None:
+            mark(pending_due, None)
+
+        return {day for day, hit in zip(wanted, covered) if hit}
 
     # Time limits
     #########################################################################

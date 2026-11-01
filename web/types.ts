@@ -40,6 +40,10 @@ export interface ReviewHeatmapOptions {
   offset: number;
   legend: number[];
   whole: boolean;
+  activity: "reviews" | "time" | "learned" | "added";
+  unit: string; // "card" or "minute"
+  verb: string; // "reviewed", "spent", "learned", "added"
+  token: string; // search token for the click-through: "rid", "lid" or "aid"
 }
 
 export type ReviewHeatmapData = { [timestamp: number]: [cards: number] };

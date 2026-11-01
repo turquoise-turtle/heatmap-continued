@@ -58,6 +58,7 @@ if TYPE_CHECKING:
 __all__ = [
     "heatmap_colors",
     "heatmap_modes",
+    "activity_types",
     "dark_mode_styles",
     "default_custom_colors",
     "config_defaults",
@@ -121,6 +122,14 @@ heatmap_modes: Dict[str, Dict[str, Any]] = {
     },
 }
 
+# What a cell counts. Order defines the cycle used by the heatmap buttons.
+activity_types: Dict[str, Dict[str, str]] = {
+    "reviews": {"label": "Reviews", "unit": "card", "verb": "reviewed", "token": "rid"},
+    "time": {"label": "Time spent", "unit": "minute", "verb": "spent", "token": "rid"},
+    "learned": {"label": "New cards learned", "unit": "card", "verb": "learned", "token": "lid"},
+    "added": {"label": "Cards added", "unit": "card", "verb": "added", "token": "aid"},
+}
+
 dark_mode_styles: Dict[str, Dict[str, str]] = {
     "inverted": {"label": "Inverted (lighter means more reviews)"},
     "same": {"label": "Same as light mode (darker means more reviews)"},
@@ -130,6 +139,7 @@ config_defaults: Dict[str, Dict[str, Any]] = {
     "synced": {
         "colors": "lime",
         "mode": "year",
+        "activity": "reviews",
         "darkmode": "inverted",
         "custom_colors": list(default_custom_colors),
         "panel": False,

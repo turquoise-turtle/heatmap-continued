@@ -52,6 +52,9 @@ if TYPE_CHECKING:
     from .config import ConfigManager
 
 _RE_RID_DATE = re.compile(r"(?<![\w:])rid:(\d{4}-\d{2}-\d{2})(?![\w:])")
+# lid: cards first answered on that date; aid: cards added on that date
+_RE_LID_DATE = re.compile(r"(?<![\w:])lid:(\d{4}-\d{2}-\d{2})(?![\w:])")
+_RE_AID_DATE = re.compile(r"(?<![\w:])aid:(\d{4}-\d{2}-\d{2})(?![\w:])")
 # Legacy format produced by earlier versions: millisecond range
 _RE_RID_RANGE = re.compile(r"(?<![\w:])rid:(\d{9,})[:,](\d{9,})(?![\w:])")
 
@@ -69,9 +72,27 @@ def cards_reviewed_between(
     )
 
 
+def cards_first_reviewed_between(
+    col: "Collection", start_ms: int, end_ms: int, include_rescheduled: bool
+) -> List[int]:
+    ease_condition = "" if include_rescheduled else " WHERE ease > 0"
+    return col.db.list(
+        "SELECT cid FROM (SELECT cid, MIN(id) AS first_id FROM revlog"
+        + ease_condition
+        + " GROUP BY cid) WHERE first_id >= ? AND first_id < ?"
+        " AND cid IN (SELECT id FROM cards)",
+        start_ms,
+        end_ms,
+    )
+
+
+def cards_added_between(col: "Collection", start_ms: int, end_ms: int) -> List[int]:
+    return col.db.list("SELECT id FROM cards WHERE id >= ? AND id < ?", start_ms, end_ms)
+
+
 def rewrite_search(search: str, col: "Collection", config: "ConfigManager") -> str:
-    """Replace rid: tokens with equivalent cid: tokens."""
-    if "rid:" not in search:
+    """Replace the add-on's date tokens with equivalent cid: tokens."""
+    if not any(token in search for token in ("rid:", "lid:", "aid:")):
         return search
 
     include_rescheduled = not config["synced"].get("limresched", True)
@@ -81,16 +102,30 @@ def rewrite_search(search: str, col: "Collection", config: "ConfigManager") -> s
         # cid:0 is a valid search that matches nothing
         return "cid:" + (",".join(str(c) for c in cids) if cids else "0")
 
-    def replace_date(match: "re.Match[str]") -> str:
+    def day_range(iso_date: str):
         rollover = int(col.get_config("rollover", 4))
-        start_ms, end_ms = revlog_id_range_for_date(match.group(1), rollover)
-        return to_cid(start_ms, end_ms)
+        return revlog_id_range_for_date(iso_date, rollover)
+
+    def to_cid_list(cids: List[int]) -> str:
+        return "cid:" + (",".join(str(c) for c in cids) if cids else "0")
+
+    def replace_date(match: "re.Match[str]") -> str:
+        return to_cid(*day_range(match.group(1)))
 
     def replace_range(match: "re.Match[str]") -> str:
         return to_cid(int(match.group(1)), int(match.group(2)))
 
+    def replace_learned(match: "re.Match[str]") -> str:
+        start_ms, end_ms = day_range(match.group(1))
+        return to_cid_list(cards_first_reviewed_between(col, start_ms, end_ms, include_rescheduled))
+
+    def replace_added(match: "re.Match[str]") -> str:
+        return to_cid_list(cards_added_between(col, *day_range(match.group(1))))
+
     search = _RE_RID_DATE.sub(replace_date, search)
     search = _RE_RID_RANGE.sub(replace_range, search)
+    search = _RE_LID_DATE.sub(replace_learned, search)
+    search = _RE_AID_DATE.sub(replace_added, search)
     return search
 
 
@@ -106,7 +141,7 @@ class FinderExtension:
 
     def on_browser_will_search(self, search_context: "SearchContext") -> None:
         search = search_context.search
-        if not isinstance(search, str) or "rid:" not in search:
+        if not isinstance(search, str) or not any(t in search for t in ("rid:", "lid:", "aid:")):
             return
         col = self._mw.col
         if col is None:

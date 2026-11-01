@@ -66,7 +66,13 @@ from aqt.qt import (
 )
 from aqt.utils import askUser, tooltip
 
-from ..config import dark_mode_styles, heatmap_colors, heatmap_modes, normalise_colors
+from ..config import (
+    activity_types,
+    dark_mode_styles,
+    heatmap_colors,
+    heatmap_modes,
+    normalise_colors,
+)
 from ..consts import ADDON
 
 if TYPE_CHECKING:
@@ -128,6 +134,10 @@ class OptionsDialog(QDialog):
         page = QWidget()
         form = QFormLayout(page)
 
+        self.activity = _combo(activity_types)
+        self.activity.setToolTip("Alt-click the 'today' button on the heatmap to cycle")
+        form.addRow("Activity shown:", self.activity)
+
         self.colors = _combo(heatmap_colors)
         self.colors.setToolTip("Shift-click the options button on the heatmap to cycle palettes")
         form.addRow("Colour palette:", self.colors)
@@ -160,6 +170,7 @@ class OptionsDialog(QDialog):
 
         self.statsvis = QCheckBox("Show streak statistics even where the heatmap is hidden")
         form.addRow(self.statsvis)
+
 
         self.panel = QCheckBox("Draw a translucent panel behind the heatmap (for background images)")
         form.addRow(self.panel)
@@ -251,6 +262,7 @@ class OptionsDialog(QDialog):
         profile = self.config["profile"]
         local = self.config["local"]
 
+        _select(self.activity, synced.get("activity", "reviews"))
         _select(self.colors, synced.get("colors", "lime"))
         _select(self.darkmode, synced.get("darkmode", "inverted"))
         _select(self.mode, synced.get("mode", "year"))
@@ -312,6 +324,7 @@ class OptionsDialog(QDialog):
         synced["streak_min"] = self.streak_min.value()
         synced["streak_free_days"] = self.streak_free_days.isChecked()
 
+        synced["activity"] = self.activity.currentData()
         synced["colors"] = self.colors.currentData()
         synced["darkmode"] = self.darkmode.currentData()
         synced["mode"] = self.mode.currentData()

@@ -71,7 +71,7 @@ HTML_HEATMAP: str = f"""
             <div title="Go back\n(Shift-click for first year)" onclick="reviewHeatmap.onHmNavigate(event, this, 'prev');" class="hm-btn">
                 <img height="10px" src="{WEB_BASE}/assets/left.svg" />
             </div>
-            <div title="Today\n(Shift-click to switch calendar mode)" onclick="reviewHeatmap.onHmHome(event, this);" class="hm-btn">
+            <div title="Today\n(Shift-click to switch calendar mode, Alt-click to switch activity)" onclick="reviewHeatmap.onHmHome(event, this);" class="hm-btn">
                 <img height="10px" src="{WEB_BASE}/assets/circle.svg" />
             </div>
             <div title="Go forward\n(Shift-click for last year)" onclick="reviewHeatmap.onHmNavigate(event, this, 'next');" class="hm-btn">
@@ -98,20 +98,12 @@ HTML_HEATMAP: str = f"""
 
 HTML_STREAK: str = """
 <div class="streak">
-    <span class="streak-info">Daily average:</span>
-    <span title="Average reviews on active days"
-        class="sstats {class_activity_daily_avg}">{text_activity_daily_avg}</span>
-    <span class="streak-info">Days learned:</span>
-    <span title="Percentage of days with review activity over entire review history"
-        class="sstats {class_pct_days_active}">{text_pct_days_active}%</span>
-    <span class="streak-info">Longest streak:</span>
-    <span title="Longest continuous streak of review activity. All types of repetitions included."
-        class="sstats {class_streak_max}">{text_streak_max}</span>
-    <span class="streak-info">Current streak:</span>
-    <span title="Current card review activity streak. All types of repetitions included."
-        class="sstats {class_streak_cur}">{text_streak_cur}</span>
+{entries}
 </div>
 """
+
+HTML_STREAK_ENTRY: str = """    <span class="streak-info">{label}:</span>
+    <span title="{title}" class="sstats {css_class}">{text}</span>"""
 
 HTML_INFO_NODATA: str = """
 No activity data to show (<span class="linkspan" onclick='pycmd("revhm_opts");'>options</span>).

@@ -80,12 +80,14 @@ class StatsReport(NamedTuple):
 
 
 class ActivityReport(NamedTuple):
-    activity: Dict[int, int]  # day (s) -> reviews (positive) or due (negative)
+    activity: Dict[int, int]  # day (s) -> activity (positive) or due (negative)
     start: Optional[int]  # ms
     stop: Optional[int]  # ms
     today: int  # ms
     offset: int  # rollover hour
     stats: StatsReport
+    activity_type: str = "reviews"
+
 
 
 DayCounts = List[Tuple[int, int]]
@@ -112,16 +114,35 @@ class ActivityReporter:
         today = self.today(rollover)
         history_start, forecast_stop = self._time_limits(today, limhist, limfcst)
         deck_ids = self._deck_ids(current_deck_only)
+        activity_type = self.activity_type
 
-        history = self._cards_done(today, rollover, history_start, deck_ids)
+        if activity_type == "time":
+            history = self._time_spent(today, rollover, history_start, deck_ids)
+        elif activity_type == "learned":
+            history = self._cards_learned(today, rollover, history_start, deck_ids)
+        elif activity_type == "added":
+            history = self._cards_added(today, rollover, history_start, deck_ids)
+        else:
+            history = self._cards_done(today, rollover, history_start, deck_ids)
         if not history:
             return None
-        forecast = self._cards_due(today, forecast_stop, deck_ids)
 
-        return self._compose(history, forecast, today, rollover, deck_ids)
+        # Only reviews have a meaningful forecast
+        forecast = (
+            self._cards_due(today, forecast_stop, deck_ids)
+            if activity_type == "reviews"
+            else []
+        )
+
+        return self._compose(history, forecast, today, rollover, deck_ids, activity_type)
 
     # Collection properties
     #########################################################################
+
+    @property
+    def activity_type(self) -> str:
+        value = self._config["synced"].get("activity", "reviews")
+        return value if value in ("reviews", "time", "learned", "added") else "reviews"
 
     @property
     def rollover(self) -> int:
@@ -146,6 +167,7 @@ class ActivityReporter:
         today: int,
         rollover: int,
         deck_ids: Optional[List[int]] = None,
+        activity_type: str = "reviews",
     ) -> ActivityReport:
         streak_max, streak_cur = self._streaks(history, today, rollover, deck_ids)
 
@@ -178,6 +200,7 @@ class ActivityReporter:
                 pct_days_active=StatsEntry(pdays, StatsType.percentage),
                 activity_daily_avg=StatsEntry(avg_cur, StatsType.cards),
             ),
+            activity_type=activity_type,
         )
 
     def _streaks(
@@ -192,7 +215,11 @@ class ActivityReporter:
         """
         conf = self._config["synced"]
         threshold = max(1, int(conf.get("streak_min") or 1))
-        free_days_enabled = bool(conf.get("streak_free_days"))
+        # "Nothing due" only makes sense for review-based activity
+        free_days_enabled = bool(conf.get("streak_free_days")) and self.activity_type in (
+            "reviews",
+            "time",
+        )
         counts = dict(history)
         first_day = history[0][0]
 
@@ -205,7 +232,8 @@ class ActivityReporter:
 
         run = streak_max = 0
         for day in range(first_day, today, DAY):
-            if counts.get(day, 0) >= threshold:
+            active = counts.get(day, 0) >= threshold
+            if active:
                 run += 1
                 streak_max = max(streak_max, run)
             elif free_days_enabled and day not in due_days:
@@ -384,6 +412,101 @@ GROUP BY day ORDER BY day"""
             logger.debug("cards done query: %s args=%s", cmd, args)
             logger.debug("cards done result (%d days): %s", len(result), result[-10:])
         return result
+
+    def _day_expression(self, column: str, rollover: int) -> str:
+        return (
+            f"CAST(STRFTIME('%s', {column}, 'unixepoch', 'localtime', "
+            f"'-{int(rollover) % 24} hours', 'start of day') AS int)"
+        )
+
+    def _revlog_conditions(
+        self, start: Optional[int], deck_ids: Optional[List[int]]
+    ) -> Tuple[str, List[int]]:
+        conf = self._config["synced"]
+        conditions: List[str] = []
+        args: List[int] = []
+        if start is not None:
+            conditions.append("id >= ?")
+            args.append((start - DAY) * 1000)
+        if conf.get("limresched", True):
+            conditions.append("ease > 0")
+        if deck_ids is not None:
+            conditions.append(
+                "cid IN (SELECT id FROM cards WHERE "
+                + self._card_deck_condition(deck_ids)
+                + ")"
+            )
+        elif conf.get("limcdel", False):
+            conditions.append("cid IN (SELECT id FROM cards)")
+        return (("WHERE " + " AND ".join(conditions)) if conditions else ""), args
+
+    def _time_spent(
+        self,
+        today: int,
+        rollover: int,
+        start: Optional[int],
+        deck_ids: Optional[List[int]],
+    ) -> DayCounts:
+        """Minutes of review time per local day (at least one minute on any
+        day with activity)."""
+        where, args = self._revlog_conditions(start, deck_ids)
+        cmd = f"""
+SELECT {self._day_expression("id / 1000", rollover)} AS day, SUM(time)
+FROM revlog {where}
+GROUP BY day ORDER BY day"""
+        rows = self._db.all(cmd, *args)
+        return [
+            (int(day), max(1, int(round(int(ms or 0) / 60000))))
+            for day, ms in rows
+            if (start is None or day >= start) and day <= today and (ms or 0) > 0
+        ]
+
+    def _cards_learned(
+        self,
+        today: int,
+        rollover: int,
+        start: Optional[int],
+        deck_ids: Optional[List[int]],
+    ) -> DayCounts:
+        """Cards answered for the first time, per local day."""
+        where, args = self._revlog_conditions(None, deck_ids)
+        cmd = f"""
+SELECT {self._day_expression("first_id / 1000", rollover)} AS day, COUNT()
+FROM (SELECT MIN(id) AS first_id FROM revlog {where} GROUP BY cid)
+GROUP BY day ORDER BY day"""
+        rows = self._db.all(cmd, *args)
+        return [
+            (int(day), int(count))
+            for day, count in rows
+            if (start is None or day >= start) and day <= today
+        ]
+
+    def _cards_added(
+        self,
+        today: int,
+        rollover: int,
+        start: Optional[int],
+        deck_ids: Optional[List[int]],
+    ) -> DayCounts:
+        """Cards created per local day (a card id is its creation time)."""
+        conditions = []
+        args: List[int] = []
+        if start is not None:
+            conditions.append("id >= ?")
+            args.append((start - DAY) * 1000)
+        if deck_ids is not None:
+            conditions.append(self._card_deck_condition(deck_ids))
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+        cmd = f"""
+SELECT {self._day_expression("id / 1000", rollover)} AS day, COUNT()
+FROM cards {where}
+GROUP BY day ORDER BY day"""
+        rows = self._db.all(cmd, *args)
+        return [
+            (int(day), int(count))
+            for day, count in rows
+            if (start is None or day >= start) and day <= today
+        ]
 
     def _cards_due(
         self, today: int, stop: int, deck_ids: Optional[List[int]]

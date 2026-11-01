@@ -39,7 +39,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Tuple
 
 from .activity import ActivityReport, ActivityReporter, StatsEntry, StatsType
-from .config import heatmap_colors, heatmap_modes, normalise_colors
+from .config import activity_types, heatmap_colors, heatmap_modes, normalise_colors
 from .web_content import (
     CSS_DARK_PREFIX,
     CSS_DISABLE_HEATMAP,
@@ -52,6 +52,7 @@ from .web_content import (
     HTML_INFO_NODATA,
     HTML_MAIN_ELEMENT,
     HTML_STREAK,
+    HTML_STREAK_ENTRY,
 )
 
 if TYPE_CHECKING:
@@ -177,6 +178,9 @@ class HeatmapRenderer:
             synced.get("mode"),
             synced.get("darkmode"),
             synced.get("panel"),
+            synced.get("activity"),
+            synced.get("streak_min"),
+            synced.get("streak_free_days"),
             tuple(synced.get("custom_colors") or ()),
         )
 
@@ -221,16 +225,32 @@ class HeatmapRenderer:
             "offset": report.offset,
             "legend": legend,
             "whole": not current_deck_only,
+            "activity": report.activity_type,
+            "unit": activity_types[report.activity_type]["unit"],
+            "verb": activity_types[report.activity_type]["verb"],
+            "token": activity_types[report.activity_type]["token"],
         }
         return HTML_HEATMAP.format(
             options=json.dumps(options), data=json.dumps(report.activity)
         )
 
+    _stats_labels: Dict[str, Tuple[str, str]] = {
+        "activity_daily_avg": ("Daily average", "Average on active days"),
+        "pct_days_active": ("Days learned", "Percentage of days with activity since the first recorded day"),
+        "streak_max": ("Longest streak", "Longest run of consecutive active days"),
+        "streak_cur": ("Current streak", "Current run of consecutive active days"),
+    }
+
     def _stats_element(self, report: ActivityReport, legend: List[float]) -> str:
         dynamic_levels = list(zip(legend, _CSS_COLORS))
-        values: Dict[str, str] = {}
-        entry: StatsEntry
-        for name, entry in report.stats._asdict().items():
+        unit_name = activity_types[report.activity_type]["unit"]
+        entries: List[str] = []
+        stats = report.stats._asdict()
+        entry: Optional[StatsEntry]
+        for name in ("activity_daily_avg", "pct_days_active", "streak_max", "streak_cur"):
+            entry = stats[name]
+            if entry is None:
+                continue
             formatting = self._stats_formatting[entry.type]
             levels = formatting.levels if formatting.levels is not None else dynamic_levels
             css_class = _CSS_COLORS[0]
@@ -238,10 +258,21 @@ class HeatmapRenderer:
                 if entry.value <= threshold:
                     break
             unit = formatting.unit
-            label = self._pluralise(entry.value, unit) if unit else str(entry.value)
-            values["class_" + name] = css_class
-            values["text_" + name] = label
-        return HTML_STREAK.format(**values)
+            if unit == "card":
+                unit = unit_name
+            if unit:
+                text = self._pluralise(entry.value, unit)
+            elif entry.type is StatsType.percentage:
+                text = f"{entry.value}%"
+            else:
+                text = str(entry.value)
+            label, title = self._stats_labels[name]
+            if name == "pct_days_active" and report.activity_type == "added":
+                label = "Days active"
+            entries.append(
+                HTML_STREAK_ENTRY.format(label=label, title=title, css_class=css_class, text=text)
+            )
+        return HTML_STREAK.format(entries="\n".join(entries))
 
     @staticmethod
     def _heatmap_legend(legend: List[float]) -> List[float]:

@@ -209,6 +209,17 @@ def test_theme_cycle_and_options_dialog(mw):
     fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.cal-heatmap-container rect.q11')).fill")
     assert fill == "rgb(1, 2, 3)"
 
+    # switching the activity re-renders with the matching tooltip options
+    mw.web._onBridgeCmd("revhm_activityswitch")
+    pump(0.5)
+    assert config["synced"]["activity"] == "time"
+    wait_for_js(mw.web, "window.reviewHeatmap && window.reviewHeatmap.options.activity === 'time'")
+    mw.web._onBridgeCmd("revhm_activityswitch")
+    mw.web._onBridgeCmd("revhm_activityswitch")
+    mw.web._onBridgeCmd("revhm_activityswitch")
+    pump(0.5)
+    assert config["synced"]["activity"] == "reviews"
+
     # an invalid custom palette is rejected and the dialog stays open
     dialog = OptionsDialog(mw, config)
     dialog.custom_colors.setText("#010203")

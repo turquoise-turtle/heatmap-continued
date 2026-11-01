@@ -8,6 +8,7 @@ First release of this fork, based on upstream Review Heatmap 1.0.1 (2022-05-24).
 
 - Four colour palettes: Grape, Teal, Slate, Mocha, and a Custom palette defined in the options dialog.
 - Optional translucent panel behind the heatmap for custom backgrounds.
+- Activity types: reviews, time spent, new cards learned, cards added; Alt-click the today button to cycle.
 - Streak options: a minimum number of reviews for a day to count, and free days (no reviews, nothing due) that do not break a streak.
 - "Palette in dark mode" setting (inverted, or same as light mode).
 - Heatmap on the finished-deck congratulations screen.

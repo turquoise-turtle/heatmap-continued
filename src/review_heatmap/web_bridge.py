@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 import aqt
 from aqt.qt import QWidget
 
-from .config import heatmap_colors, heatmap_modes
+from .config import activity_types, heatmap_colors, heatmap_modes
 
 if TYPE_CHECKING:
     from aqt.main import AnkiQt
@@ -119,6 +119,10 @@ class HeatmapBridge:
     @command("themeswitch")
     def cycle_themes(self, payload: Any, context: Any) -> None:
         self._cycle("colors", list(heatmap_colors))
+
+    @command("activityswitch")
+    def cycle_activity(self, payload: Any, context: Any) -> None:
+        self._cycle("activity", list(activity_types))
 
     @command("snanki")
     def snanki(self, payload: Any, context: Any) -> None:

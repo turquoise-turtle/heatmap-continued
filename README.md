@@ -29,6 +29,10 @@ Appearance:
 - A "Palette in dark mode" setting: inverted (lighter means more, the previous behaviour) or the same direction as light mode (upstream issues 59, 164, 215).
 - Palettes are defined with CSS custom properties, so adding or tweaking one is a single line in `web/review-heatmap.css` plus an entry in `config.py`.
 
+Activity types (Appearance → "Activity shown", or Alt-click the today button):
+
+- Reviews (the default, with the due-card forecast), time spent in minutes (upstream issue 26, pull request 62), new cards learned (issue 124) and cards added (issue 11). Clicking a day opens the matching cards in the browser for every type.
+
 Streaks:
 
 - "Minimum for a streak day": days with fewer reviews than this do not count towards a streak (upstream issue 188).

@@ -144,12 +144,15 @@ class ReviewHeatmap {
         if (count !== undefined && count.startsWith("-")) {
           count = count.substring(1);
         }
+        const unit = this.options.unit || "card";
         if (isEmpty) {
-          const what = cellData.t > today.getTime() ? "cards due" : "reviews";
+          const future = cellData.t > today.getTime();
+          const what = future ? "cards due" : `${unit}s ${this.options.verb || "reviewed"}`;
           return `<b>No</b> ${what} on ${formatData.date}`;
         }
-        const label = Math.abs(cellData.v) == 1 ? "card" : "cards";
-        const verb = cellData.v < 0 ? "due" : "reviewed";
+        const due = cellData.v < 0;
+        const label = (due ? "card" : unit) + (Math.abs(cellData.v) == 1 ? "" : "s");
+        const verb = due ? "due" : this.options.verb || "reviewed";
         return `<b>${count}</b> ${label} <b>${verb}</b> ${formatData.connector} ${formatData.date}`;
       },
       onClick: (date: Date, nb: number | null) => {
@@ -163,8 +166,8 @@ class ReviewHeatmap {
         let cmd = this.options.whole ? "" : "deck:current ";
 
         if (nb >= 0) {
-          // Review history: resolved to card ids by the add-on's Python side
-          cmd += "rid:" + localDateToIso(day);
+          // History: the date token is resolved to card ids by the Python side
+          cmd += (this.options.token || "rid") + ":" + localDateToIso(day);
         } else {
           // Forecast
           cmd += "prop:due=" + daysBetweenLocalDates(today, day);
@@ -199,6 +202,10 @@ class ReviewHeatmap {
   public onHmHome(event: MouseEvent, _button: HTMLElement) {
     if (event.shiftKey) {
       bridgeCommand("revhm_modeswitch");
+      return;
+    }
+    if (event.altKey) {
+      bridgeCommand("revhm_activityswitch");
       return;
     }
     if (this.heatmap && !this.navigationBlocked()) {

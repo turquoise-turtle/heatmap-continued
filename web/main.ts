@@ -29,12 +29,27 @@ listed here: <https://glutanimate.com/contact/>.
 Any modifications to this file must keep this entire header intact.
 */
 
-import "./_vendor/cal-heatmap.css";
-import "./css/review-heatmap.css";
+import calHeatmapCss from "./_vendor/cal-heatmap.css";
+import reviewHeatmapCss from "./review-heatmap.css";
 
 import { CalHeatMap } from "./_vendor/cal-heatmap.js";
 import { ReviewHeatmapOptions, ReviewHeatmapData } from "./types";
 import { bridgeCommand } from "./bridge";
+import { utcDayToLocalDate, utcDaySecondsToLocalSeconds } from "./dates";
+
+const STYLE_ID = "review-heatmap-style";
+
+// The stylesheets are bundled as text (esbuild --loader:.css=text) and
+// injected once, so no separate CSS file has to be shipped or exported.
+function ensureStyles() {
+  if (document.getElementById(STYLE_ID)) {
+    return;
+  }
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = calHeatmapCss + "\n" + reviewHeatmapCss;
+  document.head.appendChild(style);
+}
 
 interface CalHeatmapFormatData {
   count: string | undefined;
@@ -56,10 +71,14 @@ class ReviewHeatmap {
   }
 
   public create(data: ReviewHeatmapData) {
-    let calStartDate = applyDateOffset(new Date());
-    let calMinDate = applyDateOffset(new Date(this.options.start));
-    let calMaxDate = applyDateOffset(new Date(this.options.stop));
-    let calTodayDate = applyDateOffset(new Date(this.options.today));
+    ensureStyles();
+
+    // Python supplies days as 00:00 UTC; cal-heatmap wants local midnight of
+    // the same calendar date.
+    let calTodayDate = utcDayToLocalDate(this.options.today);
+    let calMinDate = utcDayToLocalDate(this.options.start);
+    let calMaxDate = utcDayToLocalDate(this.options.stop);
+    let calStartDate = new Date(calTodayDate);
 
     // Running overview of 6-month activity in month view:
     if (this.options.domain === "month") {
@@ -200,11 +219,14 @@ class ReviewHeatmap {
         //
         // cf.: https://github.com/wa0x6e/cal-heatmap/issues/122
         //      https://github.com/wa0x6e/cal-heatmap/issues/126
+        // Converting through the UTC date components (instead of adding
+        // the offset in force at that instant) keeps days correct across
+        // daylight-saving transitions.
         let results = {};
         for (let timestamp_string in timestamps) {
           let value = timestamps[timestamp_string];
           let timestamp = parseInt(timestamp_string, 10);
-          results[timestamp + tzOffsetByTimestamp(timestamp)] = value;
+          results[utcDaySecondsToLocalSeconds(timestamp)] = value;
         }
         return results;
       },
@@ -257,18 +279,6 @@ class ReviewHeatmap {
       bridgeCommand("revhm_contrib");
     }
   }
-}
-
-// return "zero"-ed local datetime (workaround for lack of UTC time support
-// in cal-heatmap)
-function applyDateOffset(date: Date): Date {
-  return new Date(date.getTime() + date.getTimezoneOffset() * 60 * 1000);
-}
-
-// return local timezone offset in seconds at given unix timestamp
-function tzOffsetByTimestamp(timestamp: number): number {
-  let date = new Date(timestamp * 1000);
-  return date.getTimezoneOffset() * 60;
 }
 
 globalThis.ReviewHeatmap = ReviewHeatmap;

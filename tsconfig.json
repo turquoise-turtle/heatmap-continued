@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "target": "es2017",
+        "module": "esnext",
+        "strict": false,
+        "allowJs": true,
+        "noEmit": true,
+        "verbatimModuleSyntax": true
+    },
+    "include": ["web/**/*.ts"]
+}

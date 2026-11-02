@@ -147,6 +147,7 @@ config_defaults: Dict[str, Dict[str, Any]] = {
         "streak_min": 1,
         "streak_free_days": False,
         "limdate": 0,
+        "limcrt": False,
         "limhist": 0,
         "limfcst": 0,
         "limcdel": False,

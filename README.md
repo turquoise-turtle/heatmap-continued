@@ -41,6 +41,10 @@ Streaks:
 
 Removed: the Patreon contributions dialog (replaced by an About dialog that keeps the required attribution), the unused hotkey settings, and the Qt Designer forms. The Snanki easter egg is still there.
 
+- "Ignore review entries older than this collection": shared decks sometimes carry other people's review history, which stretched "days learned" (upstream issue 179).
+
+Known behaviour: the heatmap always re-buckets the whole review log with the current "next day starts at" hour and time zone, so changing either can move reviews between days and alter old streaks (upstream issues 112, 212). The "Ignore data before" setting is the way to draw a line under such a change.
+
 ## Installation
 
 Download `review-heatmap-<version>.ankiaddon` from a release or build it yourself (see below), then double-click it or use Tools → Add-ons → Install from file in Anki. Settings from the original add-on are picked up automatically; remove the original first since both use the same module name.

@@ -160,6 +160,16 @@ def test_limits(reporter, helper, config):
     assert set(reporter.get_report().activity) == {today, today - 10 * DAY, today + 5 * DAY}
 
 
+def test_entries_older_than_the_collection_can_be_ignored(reporter, helper, config):
+    cid = helper.add_card()
+    helper.review(cid, local_noon(0))
+    helper.review(cid, local_noon(100))  # e.g. imported with a shared deck
+    assert len(reporter.get_report().activity) == 2
+    config["synced"]["limcrt"] = True
+    assert list(reporter.get_report().activity) == [reporter.today()]
+    assert reporter.get_report().stats.pct_days_active.value == 100
+
+
 def test_future_dated_revlog_rows_are_ignored(reporter, helper):
     cid = helper.add_card()
     helper.review(cid, local_noon(0))

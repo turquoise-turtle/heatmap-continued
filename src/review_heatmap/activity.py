@@ -321,6 +321,15 @@ ORDER BY cid, id"""
                 today, conf.get("limhist") or 0, conf.get("limdate") or 0
             )
 
+        if conf.get("limcrt"):
+            # Shared decks can carry review-log entries from long before this
+            # collection existed, which stretch "days learned" and the first
+            # year shown. Ignore anything older than the collection itself.
+            creation = getattr(self._col, "crt", None)
+            if creation:
+                creation_day = day_start_epoch(self._db, int(creation), rollover=0)
+                history_start = max(history_start or 0, creation_day)
+
         if limfcst is not None:
             forecast_stop = today + limfcst * DAY
         else:

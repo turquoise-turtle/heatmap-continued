@@ -10,6 +10,7 @@ First release of this fork, based on upstream Review Heatmap 1.0.1 (2022-05-24).
 - Optional translucent panel behind the heatmap for custom backgrounds.
 - Activity types: reviews, time spent, new cards learned, cards added; Alt-click the today button to cycle.
 - Optional habit-strength statistic (exponential moving average of active days).
+- "Ignore review entries older than this collection" setting.
 - Streak options: a minimum number of reviews for a day to count, and free days (no reviews, nothing due) that do not break a streak.
 - "Palette in dark mode" setting (inverted, or same as light mode).
 - Heatmap on the finished-deck congratulations screen.

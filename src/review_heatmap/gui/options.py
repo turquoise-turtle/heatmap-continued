@@ -223,6 +223,8 @@ class OptionsDialog(QDialog):
 
         self.limcdel = QCheckBox("Exclude reviews of cards that have since been deleted")
         form.addRow(self.limcdel)
+        self.limcrt = QCheckBox("Ignore review entries older than this collection (e.g. from shared decks)")
+        form.addRow(self.limcrt)
         self.limresched = QCheckBox("Exclude manual reschedules and 'forget' from history")
         form.addRow(self.limresched)
 
@@ -292,6 +294,7 @@ class OptionsDialog(QDialog):
         self.limdate.setDate(QDate.fromString(iso, "yyyy-MM-dd") if iso else QDate.currentDate())
 
         self.limcdel.setChecked(bool(synced.get("limcdel", False)))
+        self.limcrt.setChecked(bool(synced.get("limcrt", False)))
         self.limresched.setChecked(bool(synced.get("limresched", True)))
 
         self.decks.clear()
@@ -339,6 +342,7 @@ class OptionsDialog(QDialog):
             self.limdate.date().toString("yyyy-MM-dd") if self.limdate_enabled.isChecked() else 0
         )
         synced["limcdel"] = self.limcdel.isChecked()
+        synced["limcrt"] = self.limcrt.isChecked()
         synced["limresched"] = self.limresched.isChecked()
         synced["limdecks"] = [
             self.decks.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.decks.count())

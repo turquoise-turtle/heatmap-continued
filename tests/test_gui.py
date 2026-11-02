@@ -105,6 +105,11 @@ def mw(tmp_path_factory):
     seed = ProfileManager(base)
     seed.setupMeta()
     seed.meta["defaultLang"] = "en_US"
+    # Anki's update check opens a modal dialog when a newer release exists,
+    # which blocks a headless run of an older version (e.g. 25.09 once 26.09
+    # is out). Add-on update checks are pushed far into the future too.
+    seed.meta["check_for_updates"] = False
+    seed.meta["last_addon_update_check"] = 2**31
     seed.db.execute("update profiles set data = ? where name = '_global'", seed._pickle(seed.meta))
     seed.db.commit()
     seed.db.close()

@@ -194,7 +194,7 @@ class ActivityReporter:
         stop = forecast[-1][0] if forecast else last_day
 
         return ActivityReport(
-            activity=dict(sorted(activity.items())),  # seconds, as cal-heatmap expects
+            activity=dict(sorted(activity.items())),  # keyed by day, in seconds
             start=first_day * 1000,
             stop=stop * 1000,
             today=today * 1000,

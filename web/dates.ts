@@ -31,7 +31,7 @@ Any modifications to this file must keep this entire header intact.
 This file is part of a modified version of Review Heatmap (2026).
 */
 
-// Python hands us calendar days as "00:00 UTC of that date". cal-heatmap works
+// Python hands us calendar days as "00:00 UTC of that date". The calendar works
 // in local time, so each day is mapped to local midnight of the same calendar
 // date. Converting through the UTC date components (rather than adding the
 // current timezone offset, as earlier versions did) keeps the mapping correct
@@ -42,10 +42,6 @@ export const DAY_MS = 86400 * 1000;
 export function utcDayToLocalDate(utcMs: number): Date {
   const d = new Date(utcMs);
   return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0);
-}
-
-export function utcDaySecondsToLocalSeconds(utcSeconds: number): number {
-  return Math.floor(utcDayToLocalDate(utcSeconds * 1000).getTime() / 1000);
 }
 
 export function localDateToIso(date: Date): string {

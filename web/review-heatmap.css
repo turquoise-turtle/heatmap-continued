@@ -37,48 +37,86 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
     margin-bottom: 0;
 }
 
-/* Heatmap graph adjustments */
+/* Calendar */
 /* ################################################################### */
 
-.cal-heatmap-container .graph {
-    font-family: unset;
+#rh-calendar {
+    position: relative;
 }
-.graph-label {
+.rh-calendar {
+    display: block;
+    shape-rendering: crispedges;
+}
+.rh-calendar text {
+    font-size: 10px;
+}
+.rh-calendar .rh-domain-label {
     fill: #808080;
 }
+.rh-calendar .rh-day-names text {
+    fill: #999;
+}
 
-/* Graph rects */
-.cal-heatmap-container rect.highlight-now {
-    stroke: black;
-}
-.cal-heatmap-container rect.highlight {
-    stroke: #E9002E;
-}
-.cal-heatmap-container .graph-rect {
+/* Day cells. Order matters: today's outline wins over the selected day's,
+   and both win over the hover outline. */
+.rh-calendar .rh-day {
     fill: #eaeaea;
+    cursor: pointer;
 }
-:is(.night_mode, .night-mode) .cal-heatmap-container .graph-rect {
+:is(.night_mode, .night-mode) .rh-calendar .rh-day {
     fill: #222222;
+}
+.rh-calendar .rh-leaving {
+    pointer-events: none;
+}
+.rh-calendar .rh-day:hover {
+    stroke: #000;
+    stroke-width: 1px;
+}
+.rh-calendar .rh-day.rh-selected {
+    stroke: #E9002E;
+    stroke-width: 1px;
+}
+.rh-calendar .rh-day.rh-today {
+    stroke: black;
+    stroke-width: 1px;
 }
 
 /* Heatmap hover tooltip */
 /* ################################################################### */
 
-.ch-tooltip {
+.rh-tooltip {
+    display: none;
+    position: absolute;
+    z-index: 99999;
+    box-sizing: border-box;
+    width: 140px;
+    padding: 10px;
+    border-radius: 2px;
+    background: #222;
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.2);
     color: rgb(240, 240, 240);
-    animation: 0.5s ease 0s normal forwards 1 fadein;
-    -webkit-animation: 0.5s ease 0s normal forwards 1 fadein;
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: center;
+    pointer-events: none;
+    animation: 0.5s ease 0s normal forwards 1 rh-fadein;
 }
-/* Delay tooltip using fadein */
-@keyframes fadein {
-    0% { opacity:0; }
-    66% { opacity:0; }
-    100% { opacity:0.9; }
+.rh-tooltip::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    margin-left: -6px;
+    border-style: solid;
+    border-width: 6px 6px 0;
+    border-color: #222 transparent transparent;
 }
-@-webkit-keyframes fadein {
-    0% { opacity:0; }
-    66% { opacity:0; }
-    100% { opacity:0.9; }
+/* Delay the tooltip by fading it in */
+@keyframes rh-fadein {
+    0% { opacity: 0; }
+    66% { opacity: 0; }
+    100% { opacity: 0.9; }
 }
 
 /* Heatmap button area */
@@ -166,7 +204,6 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 /* Streak stats */
 /* ################################################################### */
 
-/* TODO: investigate why we had two copies of these */
 .streak {margin-top: 0.5em;}
 .streak-info {
     margin-left: 1em;
@@ -181,27 +218,27 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
 
 /* FORECAST COLOURS (same for every palette; reversed because of the negative
    value workaround) */
-.cal-heatmap-container .q1{fill: #525252}
-.cal-heatmap-container .q2{fill: #616161}
-.cal-heatmap-container .q3{fill: #707070}
-.cal-heatmap-container .q4{fill: #7F7F7F}
-.cal-heatmap-container .q5{fill: #8E8E8E}
-.cal-heatmap-container .q6{fill: #9D9D9D}
-.cal-heatmap-container .q7{fill: #ACACAC}
-.cal-heatmap-container .q8{fill: #BBBBBB}
-.cal-heatmap-container .q9{fill: #CACACA}
-.cal-heatmap-container .q10{fill: #D9D9D9}
+.rh-calendar .rh-q1{fill: #525252}
+.rh-calendar .rh-q2{fill: #616161}
+.rh-calendar .rh-q3{fill: #707070}
+.rh-calendar .rh-q4{fill: #7F7F7F}
+.rh-calendar .rh-q5{fill: #8E8E8E}
+.rh-calendar .rh-q6{fill: #9D9D9D}
+.rh-calendar .rh-q7{fill: #ACACAC}
+.rh-calendar .rh-q8{fill: #BBBBBB}
+.rh-calendar .rh-q9{fill: #CACACA}
+.rh-calendar .rh-q10{fill: #D9D9D9}
 
-:is(.night_mode, .night-mode) .cal-heatmap-container .q1{fill: #5d5f5f}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q2{fill: #585a5a}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q3{fill: #535555}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q4{fill: #4e5050}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q5{fill: #494b4b}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q6{fill: #444646}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q7{fill: #3f4141}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q8{fill: #3a3c3c}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q9{fill: #353737}
-:is(.night_mode, .night-mode) .cal-heatmap-container .q10{fill: #313232}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q1{fill: #5d5f5f}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q2{fill: #585a5a}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q3{fill: #535555}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q4{fill: #4e5050}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q5{fill: #494b4b}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q6{fill: #444646}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q7{fill: #3f4141}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q8{fill: #3a3c3c}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q9{fill: #353737}
+:is(.night_mode, .night-mode) .rh-calendar .rh-q10{fill: #313232}
 
 /* REVIEW HISTORY COLOURS
    Each palette defines ten steps from light (--rh-c1, few reviews) to dark
@@ -234,16 +271,16 @@ License: GNU AGPLv3 <https://www.gnu.org/licenses/agpl.html>
     --rh-l10: var(--rh-c1);
 }
 
-.rh-container .cal-heatmap-container .q11{fill: var(--rh-l1)}
-.rh-container .cal-heatmap-container .q12{fill: var(--rh-l2)}
-.rh-container .cal-heatmap-container .q13{fill: var(--rh-l3)}
-.rh-container .cal-heatmap-container .q14{fill: var(--rh-l4)}
-.rh-container .cal-heatmap-container .q15{fill: var(--rh-l5)}
-.rh-container .cal-heatmap-container .q16{fill: var(--rh-l6)}
-.rh-container .cal-heatmap-container .q17{fill: var(--rh-l7)}
-.rh-container .cal-heatmap-container .q18{fill: var(--rh-l8)}
-.rh-container .cal-heatmap-container .q19{fill: var(--rh-l9)}
-.rh-container .cal-heatmap-container .q20{fill: var(--rh-l10)}
+.rh-container .rh-calendar .rh-q11{fill: var(--rh-l1)}
+.rh-container .rh-calendar .rh-q12{fill: var(--rh-l2)}
+.rh-container .rh-calendar .rh-q13{fill: var(--rh-l3)}
+.rh-container .rh-calendar .rh-q14{fill: var(--rh-l4)}
+.rh-container .rh-calendar .rh-q15{fill: var(--rh-l5)}
+.rh-container .rh-calendar .rh-q16{fill: var(--rh-l6)}
+.rh-container .rh-calendar .rh-q17{fill: var(--rh-l7)}
+.rh-container .rh-calendar .rh-q18{fill: var(--rh-l8)}
+.rh-container .rh-calendar .rh-q19{fill: var(--rh-l9)}
+.rh-container .rh-calendar .rh-q20{fill: var(--rh-l10)}
 
 .rh-container .rh-col11{color: var(--rh-l1)}
 .rh-container .rh-col12{color: var(--rh-l2)}

@@ -46,4 +46,5 @@ export interface ReviewHeatmapOptions {
   token: string; // search token for the click-through: "rid", "lid" or "aid"
 }
 
-export type ReviewHeatmapData = { [timestamp: number]: [cards: number] };
+// Keyed by 00:00 UTC of each day, in seconds; negative values are cards due.
+export type ReviewHeatmapData = { [utcDaySeconds: string]: number };

@@ -52,11 +52,6 @@ ATTRIBUTION_HTML = (
 
 
 def about_html() -> str:
-    libraries = "".join(
-        f'<li><a href="{lib["url"]}">{lib["name"]}</a> {lib["version"]} '
-        f"by {lib['author']} ({lib['license']})</li>"
-        for lib in ADDON.LIBRARIES
-    )
     return f"""
 <h2 style="margin-bottom:0">{ADDON.NAME} <small>v{ADDON.VERSION}</small></h2>
 <p><b>This is a modified version</b>, updated for current Anki releases
@@ -65,7 +60,8 @@ program and the original author is not responsible for it.</p>
 <p>{ATTRIBUTION_HTML}</p>
 <p>Copyright © 2016-2022 {ADDON.ORIGINAL_AUTHOR}; modifications © 2026.
 Licensed under the {ADDON.LICENSE} (see the LICENSE file).</p>
-<p>Bundled libraries:</p><ul>{libraries}</ul>
+<p>The calendar layout follows <a href="https://github.com/wa0x6e/cal-heatmap">cal-heatmap</a>
+by Wan Qi Chen, which earlier versions bundled.</p>
 <p>Tips: shift-click the options button to cycle colour palettes, shift-click the
 today button to switch calendar modes.</p>
 """

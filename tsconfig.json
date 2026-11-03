@@ -1,11 +1,15 @@
 {
     "compilerOptions": {
         "target": "es2017",
+        "lib": ["es2020", "dom", "dom.iterable"],
         "module": "esnext",
-        "strict": false,
-        "allowJs": true,
+        "moduleResolution": "bundler",
+        "strict": true,
         "noEmit": true,
-        "verbatimModuleSyntax": true
+        "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
+        "erasableSyntaxOnly": true,
+        "types": ["node"]
     },
     "include": ["web/**/*.ts"]
 }

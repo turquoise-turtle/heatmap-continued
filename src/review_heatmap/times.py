@@ -34,9 +34,9 @@
 Shared date handling
 
 The add-on represents a calendar day as the Unix timestamp of 00:00 UTC on
-that date. This is what cal-heatmap expects once the web layer has converted
-it back into a local date, and it keeps all day arithmetic at exactly 86400
-seconds per day regardless of daylight-saving transitions.
+that date. The web layer turns it back into a local calendar date, and it
+keeps all day arithmetic at exactly 86400 seconds per day regardless of
+daylight-saving transitions.
 
 Which calendar day a review belongs to is decided in local wall-clock time
 after shifting back by the "next day starts at" rollover hour. Doing the shift

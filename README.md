@@ -58,11 +58,12 @@ Download `review-heatmap-<version>.ankiaddon` from a release or build it yoursel
 
 ## Development
 
-Requirements: [uv](https://docs.astral.sh/uv/) and Node.js (for esbuild).
+Requirements: [uv](https://docs.astral.sh/uv/) and Node.js 24 or later (for esbuild, TypeScript and the web tests).
 
 ```bash
 uv sync                     # Anki 26.09 test environment
-npm install                 # esbuild
+npm install                 # esbuild and TypeScript
+npm run typecheck           # strict type check of web/
 npm run build               # bundle web/ into src/review_heatmap/web/anki-review-heatmap.js
 uv run pytest               # unit, DST and headless GUI tests
 tests/run_matrix.sh         # the same against Anki 25.09 and 26.09
@@ -70,14 +71,14 @@ uv run build.py build       # dist/review-heatmap-<version>.ankiaddon
 uv run build.py link        # symlink the add-on into your Anki add-ons folder
 ```
 
-The web date helpers have their own Node tests: `TZ=Australia/Sydney npm test`.
+The web layer has its own Node tests for date handling and calendar layout: `TZ=Australia/Sydney npm test`.
 
 Layout:
 
 - `src/review_heatmap/` is the add-on package. `activity.py` queries the collection, `renderer.py` turns a report into HTML, `views.py` hooks into Anki's screens, `finder.py` handles the click-through search and `gui/` holds the dialogs.
-- `web/` holds the TypeScript and CSS sources and the vendored cal-heatmap library; the built bundle is committed so the package can be assembled without Node.
+- `web/` holds the TypeScript and CSS sources. `calendar.ts` draws the heatmap itself, with no runtime libraries; the built bundle is committed so the package can be assembled without Node.
 - `tests/` runs against a real `anki` collection; `test_gui.py` boots a headless Anki with the add-on linked in.
 
 ## Licence
 
-GNU AGPLv3 with additional terms; see [LICENSE](LICENSE). Copyright © 2016-2022 Aristotelis P. (Glutanimate); modifications © 2026. Bundled libraries: [d3.js](https://d3js.org/) v3.5.17 (BSD) and [cal-heatmap](https://github.com/glutanimate/cal-heatmap) v3.6.3.2-anki (MIT).
+GNU AGPLv3 with additional terms; see [LICENSE](LICENSE). Copyright © 2016-2022 Aristotelis P. (Glutanimate); modifications © 2026. The add-on bundles no third-party libraries. Versions up to 2.0.0 bundled [d3.js](https://d3js.org/) v3.5.17 and Glutanimate's fork of [cal-heatmap](https://github.com/wa0x6e/cal-heatmap) by Wan Qi Chen, whose layout the built-in calendar follows.

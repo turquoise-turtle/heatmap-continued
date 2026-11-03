@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- The heatmap is drawn by a small built-in renderer (`web/calendar.ts`) instead of d3.js 3.5.17 (2016) and a 2022 fork of cal-heatmap 3.6. The add-on now ships no third-party JavaScript, and each screen loads 19 KB of script instead of about 214 KB. Layout, colours, tooltips, navigation, click-through and the sliding page animation are unchanged.
+- Tooltip dates read day-month-year, for example "Tuesday 3 November 2026".
+- The paging slide is redone with the browser's Web Animations API, matching the old motion and easing. It is skipped when the system asks for reduced motion, and clicking again mid-slide simply starts the next one, so the navigation debounce is gone.
+- Web tooling: esbuild 0.28.2, strict TypeScript 7 type-checking (`npm run typecheck`).
+
+### Fixed
+
+- In month view, paging back and then forward drew some six-week months five weeks wide, so they overlapped the next month.
+- In year view, years starting on a Monday (2024, 2029) began with an empty column and pushed the last week into the gap.
+
 ## 2.0.0 - 2026-11-02
 
 First release of this fork, based on upstream Review Heatmap 1.0.1 (2022-05-24).

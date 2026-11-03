@@ -4,11 +4,15 @@
     "private": true,
     "description": "Web bundle for the Review Heatmap Anki add-on",
     "license": "AGPL-3.0-or-later",
+    "type": "module",
     "scripts": {
         "build": "esbuild web/main.ts --bundle --minify --target=es2017 --loader:.css=text --legal-comments=inline --outfile=src/review_heatmap/web/anki-review-heatmap.js",
+        "typecheck": "tsc -p .",
         "test": "node --test web/*.test.ts"
     },
     "devDependencies": {
-        "esbuild": "0.25.12"
+        "@types/node": "26.6.6",
+        "esbuild": "0.28.2",
+        "typescript": "7.0.2"
     }
 }

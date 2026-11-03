@@ -51,19 +51,3 @@ class ADDON:
         "fork": "https://github.com/turquoise-turtle/anki-addons",
         "help": "https://github.com/glutanimate/review-heatmap/wiki",
     }
-    LIBRARIES = (
-        {
-            "name": "d3.js",
-            "version": "v3.5.17",
-            "author": "Mike Bostock",
-            "license": "BSD license",
-            "url": "https://d3js.org/",
-        },
-        {
-            "name": "cal-heatmap",
-            "version": "v3.6.3.2-anki",
-            "author": "Wan Qi Chen",
-            "license": "MIT license",
-            "url": "https://github.com/glutanimate/cal-heatmap",
-        },
-    )

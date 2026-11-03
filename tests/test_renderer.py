@@ -52,7 +52,7 @@ def test_hidden_views_only_show_stats(mw, config, helper):
     helper.review(cid, local_noon(0))
     config["profile"]["display"]["overview"] = False
     html = HeatmapController(mw, config).render_for_view(HeatmapView.overview, current_deck_only=True)
-    assert "rh-disable-heatmap" in html and "cal-heatmap" not in html
+    assert "rh-disable-heatmap" in html and "rh-calendar" not in html
     assert "Current streak:" in html
     config["profile"]["statsvis"] = False
     html = HeatmapController(mw, config).render_for_view(HeatmapView.overview, current_deck_only=True)

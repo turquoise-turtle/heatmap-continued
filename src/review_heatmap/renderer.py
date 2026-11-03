@@ -279,8 +279,8 @@ class HeatmapRenderer:
 
     @staticmethod
     def _heatmap_legend(legend: List[float]) -> List[float]:
-        # Negative mirror image for future dates lets the forecast use its own
-        # colours without modifying cal-heatmap.
+        # Negative mirror image for future dates gives the forecast its own
+        # range of colour classes.
         return [-i for i in legend[::-1]] + [0.0] + legend
 
     @staticmethod

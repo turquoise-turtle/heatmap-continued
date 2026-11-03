@@ -50,7 +50,7 @@ CSS_PANEL = "rh-panel"
 
 WEB_BASE = f"/_addons/{ADDON.MODULE}/web"
 
-SCRIPT_URLS = (f"{WEB_BASE}/d3.min.js", f"{WEB_BASE}/anki-review-heatmap.js")
+SCRIPT_URLS = (f"{WEB_BASE}/anki-review-heatmap.js",)
 
 HTML_MAIN_ELEMENT: str = (
     "".join(f'<script type="text/javascript" src="{url}"></script>\n' for url in SCRIPT_URLS)
@@ -88,7 +88,7 @@ HTML_HEATMAP: str = f"""
         </div>
         <div style="clear: both;">&nbsp;</div>
     </div>
-    <div id="cal-heatmap"></div>
+    <div id="rh-calendar"></div>
 </div>
 <script type="text/javascript">
     window.reviewHeatmap = new ReviewHeatmap({{options}});

@@ -31,7 +31,6 @@
 # Any modifications to this file must keep this entire header intact.
 */
 
-export function bridgeCommand(command: string): any {
-  // @ts-expect-error
+export function bridgeCommand(command: string): unknown {
   return pycmd(command);
 }

@@ -165,13 +165,13 @@ def test_heatmap_renders_with_reviews(mw, helper):
     helper.make_due(helper.add_card(front="due"), 3)
     refresh_deck_browser(mw)
 
-    rects = wait_for_js(mw.web, "document.querySelectorAll('.cal-heatmap-container rect.graph-rect').length")
+    rects = wait_for_js(mw.web, "document.querySelectorAll('.rh-calendar rect.rh-day').length")
     assert rects >= 365
-    assert eval_js(mw.web, "document.querySelectorAll('.cal-heatmap-container rect.q11, .cal-heatmap-container rect.q12, .cal-heatmap-container rect.q13').length") >= 3
+    assert eval_js(mw.web, "document.querySelectorAll('.rh-calendar rect.rh-q11, .rh-calendar rect.rh-q12, .rh-calendar rect.rh-q13').length") >= 3
     stats = eval_js(mw.web, "Array.from(document.querySelectorAll('.sstats')).map(e => e.textContent)")
     assert stats[2] == "3 days" and stats[3] == "3 days"
     # the palette is applied through CSS variables
-    fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.cal-heatmap-container rect.q11')).fill")
+    fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.rh-calendar rect.rh-q11')).fill")
     assert fill == "rgb(214, 230, 133)"  # lime --rh-c1
 
 
@@ -200,7 +200,7 @@ def test_theme_cycle_and_options_dialog(mw):
     assert config["synced"]["streak_min"] == 2
     assert mw.col.get_config("heatmap")["limhist"] == 100
     wait_for_js(mw.web, "document.querySelectorAll('.rh-container.rh-theme-grape.rh-dark-same.rh-panel').length")
-    fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.cal-heatmap-container rect.q11')).fill")
+    fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.rh-calendar rect.rh-q11')).fill")
     assert fill == "rgb(234, 217, 251)"  # grape --rh-c1
     assert eval_js(mw.web, "getComputedStyle(document.querySelector('.rh-container')).backgroundColor") != "rgba(0, 0, 0, 0)"
 
@@ -211,7 +211,7 @@ def test_theme_cycle_and_options_dialog(mw):
     dialog.accept()
     pump(0.5)
     wait_for_js(mw.web, "document.querySelectorAll('.rh-container.rh-theme-custom').length")
-    fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.cal-heatmap-container rect.q11')).fill")
+    fill = eval_js(mw.web, "getComputedStyle(document.querySelector('.rh-calendar rect.rh-q11')).fill")
     assert fill == "rgb(1, 2, 3)"
 
     # switching the activity re-renders with the matching tooltip options
@@ -276,7 +276,7 @@ def test_congratulations_screen_gets_heatmap(mw, helper):
     mw.moveToState("overview")
     wait_until(lambda: "congrats" in mw.web.url().path(), 30, "congrats page")
     wait_for_js(mw.web, "document.querySelectorAll('.rh-host .rh-container.rh-view-overview').length", timeout=45)
-    assert wait_for_js(mw.web, "document.querySelectorAll('.rh-host .cal-heatmap-container rect').length") >= 365
+    assert wait_for_js(mw.web, "document.querySelectorAll('.rh-host .rh-calendar rect').length") >= 365
     mw.moveToState("deckBrowser")
     pump(0.3)
 
@@ -287,7 +287,7 @@ def test_legacy_stats_window_shows_heatmap(mw):
     dialog = DeckStats(mw)
     pump(1.0)
     wait_for_js(dialog.form.web, "document.querySelectorAll('.rh-container.rh-view-stats').length", timeout=45)
-    assert eval_js(dialog.form.web, "document.querySelectorAll('.cal-heatmap-container rect').length") > 0
+    assert eval_js(dialog.form.web, "document.querySelectorAll('.rh-calendar rect').length") > 0
     # the bridge has a context so our pycmd handlers find a parent window
     assert dialog.form.web._bridge_context is dialog
     dialog.reject()

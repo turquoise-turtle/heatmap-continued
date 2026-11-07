@@ -4,7 +4,7 @@
 
 ### Changed
 
-- The heatmap is drawn by a small built-in renderer (`web/calendar.ts`) instead of d3.js 3.5.17 (2016) and a 2022 fork of cal-heatmap 3.6. The add-on now ships no third-party JavaScript, and each screen loads 19 KB of script instead of about 214 KB. Layout, colours, tooltips, navigation, click-through and the sliding page animation are unchanged.
+- The heatmap is drawn by a small built-in renderer (`web/calendar.ts`) instead of d3.js 3.5.17 (2016) and a 2022 fork of cal-heatmap 3.6. The add-on now ships no third-party JavaScript, and each screen loads 19 KB of script instead of about 214 KB. Layout, colours, tooltip wording and placement, navigation, click-through and the sliding page animation are unchanged.
 - Tooltip dates read day-month-year, for example "Tuesday 3 November 2026".
 - The paging slide is redone with the browser's Web Animations API, matching the old motion and easing. It is skipped when the system asks for reduced motion, and clicking again mid-slide simply starts the next one, so the navigation debounce is gone.
 - Web tooling: esbuild 0.28.2, strict TypeScript 7 type-checking (`npm run typecheck`).

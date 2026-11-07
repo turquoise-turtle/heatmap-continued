@@ -224,7 +224,7 @@ interface RenderedCell {
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-// d3's default "cubic-in-out", which the old slide used.
+// The usual Bézier fit to d3's default "cubic-in-out", which the old slide used.
 const SLIDE_EASING = "cubic-bezier(0.65, 0, 0.35, 1)";
 
 function prefersReducedMotion(): boolean {

@@ -48,6 +48,6 @@ class ADDON:
         "upstream": "https://github.com/glutanimate/review-heatmap/",
         "support_original_author": "https://glutanimate.com/support-my-work/",
         "patreon": "https://www.patreon.com/glutanimate",
-        "fork": "https://github.com/turquoise-turtle/anki-addons",
+        "fork": "https://github.com/turquoise-turtle/review-heatmap",
         "help": "https://github.com/glutanimate/review-heatmap/wiki",
     }

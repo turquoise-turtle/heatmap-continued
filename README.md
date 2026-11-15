@@ -1,8 +1,13 @@
 # Review Heatmap (modernised fork)
 
+<a href="https://madebyhuman.iamjarl.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://madebyhuman.iamjarl.com/badges/co-created-white.svg"><img src="https://madebyhuman.iamjarl.com/badges/co-created-black.svg" alt="Co-created with AI" height="28"></picture></a>
+
 A calendar heatmap of your past and future Anki reviews on the deck browser, deck overview, finished-deck screen and legacy statistics window, with streak statistics. Clicking a day opens the cards reviewed or due on that day in the browser.
 
 **This is a modified version of Review Heatmap, not the original program.** It targets Anki 25.09 and 26.09 and is maintained independently of the upstream project. Based on the Anki add-on [Review Heatmap](https://github.com/glutanimate/review-heatmap/) by Glutanimate. [Click here to support Glutanimate's work.](https://glutanimate.com/support-my-work/)
+
+> [!NOTE]
+> This fork was improved with the help of Claude, with turquoise-turtle directing and testing the work. Glutanimate has not reviewed or endorsed these changes.
 
 ![Light mode, Lime palette](screenshots/light-lime.png)
 
@@ -19,7 +24,7 @@ Compatibility and robustness:
 - Profile switches, profile deletion and full syncs no longer leave the add-on holding a stale collection (upstream issues 159, 177).
 - Deck-limited views count reviews of cards currently sitting in filtered decks, and forecasts use the real due date of such cards (upstream issue 207).
 - Overdue cards count towards today in the forecast, as in Anki's own statistics.
-- Navigation buttons ignore clicks while the calendar is animating (upstream issue 201).
+- Clicking the navigation buttons quickly no longer scrambles the calendar (upstream issue 201).
 - Debug logging goes through Anki's add-on logger (`logs/addons/review_heatmap/`) and is switched on from the options dialog.
 
 Appearance:
@@ -47,7 +52,7 @@ Known behaviour: the heatmap always re-buckets the whole review log with the cur
 
 ## Installation
 
-Download `review-heatmap-<version>.ankiaddon` from a release or build it yourself (see below), then double-click it or use Tools → Add-ons → Install from file in Anki. Settings from the original add-on are picked up automatically; remove the original first since both use the same module name.
+This fork isn't on AnkiWeb. Download `review-heatmap-<version>.ankiaddon` from the [latest release](https://github.com/turquoise-turtle/review-heatmap/releases/latest) or build it yourself (see below), then double-click it or use Tools → Add-ons → Install from file in Anki, and restart Anki. Installing it turns off the AnkiWeb Review Heatmap if you have it, since both would draw a heatmap. Your settings carry over, because both versions store them in the same place.
 
 ## Usage
 
@@ -81,4 +86,4 @@ Layout:
 
 ## Licence
 
-GNU AGPLv3 with additional terms; see [LICENSE](LICENSE). Copyright © 2016-2022 Aristotelis P. (Glutanimate); modifications © 2026. The add-on bundles no third-party libraries. Versions up to 2.0.0 bundled [d3.js](https://d3js.org/) v3.5.17 and Glutanimate's fork of [cal-heatmap](https://github.com/wa0x6e/cal-heatmap) by Wan Qi Chen, whose layout the built-in calendar follows.
+GNU AGPLv3 with additional terms; see [LICENSE](LICENSE). Copyright © 2016-2022 Aristotelis P. (Glutanimate); modifications © 2026. The add-on bundles no third-party libraries. The original bundled [d3.js](https://d3js.org/) v3.5.17 and Glutanimate's fork of [cal-heatmap](https://github.com/wa0x6e/cal-heatmap) by Wan Qi Chen, whose layout the built-in calendar follows.

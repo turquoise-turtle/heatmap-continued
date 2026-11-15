@@ -32,4 +32,4 @@ Source code, changelog and releases: <a href="https://github.com/turquoise-turtl
 Licence: GNU AGPLv3 with additional terms. Copyright © 2016-2022 Aristotelis P. (Glutanimate); modifications © 2026. Based on the Anki add-on <a href="https://github.com/glutanimate/review-heatmap/">Review Heatmap</a> by Glutanimate. <a href="https://glutanimate.com/support-my-work/">Click here to support Glutanimate's work.</a>
 ```
 
-Upload `dist/heatmap-continued-<version>.ankiaddon` (built with `uv run build.py build`) at https://ankiweb.net/shared/addons. Once AnkiWeb assigns the add-on its number, add the AnkiWeb link to `README.md`.
+Listed at https://ankiweb.net/shared/info/1300407681 (code 1300407681). To update it, build `dist/heatmap-continued-<version>.ankiaddon` with `uv run build.py build` and upload it to Branch 1 from the listing's edit page. Branch 1 supports 25.09 to 26.09 with no `-` prefix, so newer Anki releases can still download it.

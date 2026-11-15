@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.1 - 2026-11-16
+
+### Fixed
+
+- The add-on works when installed from AnkiWeb. 2.0.0 assumed it was installed in a folder called `review_heatmap`, which is only true for the `.ankiaddon` file; AnkiWeb installs into a folder named after the add-on's number, so the heatmap's script never loaded and the Config button did nothing. A new test installs the add-on under both kinds of folder.
+
+### Added
+
+- Listed on AnkiWeb as [Heatmap Continued](https://ankiweb.net/shared/info/1300407681), code 1300407681.
+
 ## 2.0.0 - 2026-11-15
 
 First release of Heatmap Continued, a fork of Review Heatmap 1.0.1 (2022-05-24) by Glutanimate. It has its own name because the original's licence reserves "Review Heatmap". Made with the help of Claude.

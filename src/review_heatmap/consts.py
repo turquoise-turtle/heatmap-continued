@@ -42,7 +42,10 @@ class ADDON:
     # 1), so the fork has its own name; the original's name appears only in
     # the required attribution and legal notices.
     NAME = "Heatmap Continued"
-    MODULE = "review_heatmap"
+    # The folder Anki installed the add-on into: "review_heatmap" for a file
+    # install, the add-on's number for an AnkiWeb install. Web asset URLs and
+    # the config and logging hooks are keyed by it, so it must not be fixed.
+    MODULE = __name__.split(".")[0]
     VERSION = __version__
     LICENSE = "GNU AGPLv3 with additional terms"
     # Required by the licence's additional terms (see LICENSE, section 3).

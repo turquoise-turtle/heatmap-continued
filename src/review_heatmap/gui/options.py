@@ -251,7 +251,7 @@ class OptionsDialog(QDialog):
         self.debug = QCheckBox("Write debug information to Anki's add-on log")
         layout.addWidget(self.debug)
         note = QLabel(
-            "Logs are stored under logs/addons/review_heatmap in your Anki data "
+            f"Logs are stored under logs/addons/{ADDON.MODULE} in your Anki data "
             "folder. Appearance and data settings are synchronised with your "
             "collection; display settings are per profile."
         )

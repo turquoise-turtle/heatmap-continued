@@ -1,6 +1,6 @@
 {
     "name": "anki-review-heatmap-web",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "private": true,
     "description": "Web bundle for the Heatmap Continued Anki add-on",
     "license": "AGPL-3.0-or-later",

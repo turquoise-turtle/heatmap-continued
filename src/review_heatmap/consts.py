@@ -51,6 +51,6 @@ class ADDON:
         "upstream": "https://github.com/glutanimate/review-heatmap/",
         "support_original_author": "https://glutanimate.com/support-my-work/",
         "patreon": "https://www.patreon.com/glutanimate",
-        "fork": "https://github.com/turquoise-turtle/review-heatmap",
+        "fork": "https://github.com/turquoise-turtle/heatmap-continued",
         "help": "https://github.com/glutanimate/review-heatmap/wiki",
     }

@@ -52,7 +52,7 @@ Known behaviour: the heatmap always re-buckets the whole review log with the cur
 
 ## Installation
 
-This fork isn't on AnkiWeb yet. Download `heatmap-continued-<version>.ankiaddon` from the [latest release](https://github.com/turquoise-turtle/review-heatmap/releases/latest) or build it yourself (see below), then double-click it or use Tools → Add-ons → Install from file in Anki, and restart Anki. Installing it turns off the AnkiWeb Review Heatmap if you have it, since both would draw a heatmap. Your settings carry over, because both versions store them in the same place.
+This fork isn't on AnkiWeb yet. Download `heatmap-continued-<version>.ankiaddon` from the [latest release](https://github.com/turquoise-turtle/heatmap-continued/releases/latest) or build it yourself (see below), then double-click it or use Tools → Add-ons → Install from file in Anki, and restart Anki. Installing it turns off the AnkiWeb Review Heatmap if you have it, since both would draw a heatmap. Your settings carry over, because both versions store them in the same place.
 
 ## Usage
 

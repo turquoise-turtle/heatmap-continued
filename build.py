@@ -45,7 +45,7 @@ def manifest() -> dict:
         "human_version": version(),
         "mod": int(time.time()),
         "min_point_version": MIN_POINT_VERSION,
-        "homepage": "https://github.com/turquoise-turtle/review-heatmap",
+        "homepage": "https://github.com/turquoise-turtle/heatmap-continued",
         # Add-ons known to clash with this one (upstream list), plus the
         # AnkiWeb original: Anki disables it on install, otherwise both draw
         # a heatmap.

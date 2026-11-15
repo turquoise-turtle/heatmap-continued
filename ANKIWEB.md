@@ -27,7 +27,7 @@ Based on the Anki add-on <a href="https://github.com/glutanimate/review-heatmap/
 
 Installing it turns off the original Review Heatmap, since both would draw a heatmap. Your settings carry over.
 
-Source code, changelog and releases: <a href="https://github.com/turquoise-turtle/review-heatmap">github.com/turquoise-turtle/review-heatmap</a>
+Source code, changelog and releases: <a href="https://github.com/turquoise-turtle/heatmap-continued">github.com/turquoise-turtle/heatmap-continued</a>
 
 Licence: GNU AGPLv3 with additional terms. Copyright © 2016-2022 Aristotelis P. (Glutanimate); modifications © 2026. Based on the Anki add-on <a href="https://github.com/glutanimate/review-heatmap/">Review Heatmap</a> by Glutanimate. <a href="https://glutanimate.com/support-my-work/">Click here to support Glutanimate's work.</a>
 ```

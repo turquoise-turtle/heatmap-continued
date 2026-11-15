@@ -1,10 +1,10 @@
-# Review Heatmap (modernised fork)
+# Heatmap Continued
 
 <a href="https://madebyhuman.iamjarl.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://madebyhuman.iamjarl.com/badges/co-created-white.svg"><img src="https://madebyhuman.iamjarl.com/badges/co-created-black.svg" alt="Co-created with AI" height="28"></picture></a>
 
 A calendar heatmap of your past and future Anki reviews on the deck browser, deck overview, finished-deck screen and legacy statistics window, with streak statistics. Clicking a day opens the cards reviewed or due on that day in the browser.
 
-**This is a modified version of Review Heatmap, not the original program.** It targets Anki 25.09 and 26.09 and is maintained independently of the upstream project. Based on the Anki add-on [Review Heatmap](https://github.com/glutanimate/review-heatmap/) by Glutanimate. [Click here to support Glutanimate's work.](https://glutanimate.com/support-my-work/)
+**Heatmap Continued is a modified version of the Review Heatmap add-on, not the original program.** It targets Anki 25.09 and 26.09 and is maintained independently of the upstream project. Based on the Anki add-on [Review Heatmap](https://github.com/glutanimate/review-heatmap/) by Glutanimate. [Click here to support Glutanimate's work.](https://glutanimate.com/support-my-work/)
 
 > [!NOTE]
 > This fork was improved with the help of Claude, with turquoise-turtle directing and testing the work. Glutanimate has not reviewed or endorsed these changes.
@@ -52,11 +52,11 @@ Known behaviour: the heatmap always re-buckets the whole review log with the cur
 
 ## Installation
 
-This fork isn't on AnkiWeb. Download `review-heatmap-<version>.ankiaddon` from the [latest release](https://github.com/turquoise-turtle/review-heatmap/releases/latest) or build it yourself (see below), then double-click it or use Tools → Add-ons → Install from file in Anki, and restart Anki. Installing it turns off the AnkiWeb Review Heatmap if you have it, since both would draw a heatmap. Your settings carry over, because both versions store them in the same place.
+This fork isn't on AnkiWeb yet. Download `heatmap-continued-<version>.ankiaddon` from the [latest release](https://github.com/turquoise-turtle/review-heatmap/releases/latest) or build it yourself (see below), then double-click it or use Tools → Add-ons → Install from file in Anki, and restart Anki. Installing it turns off the AnkiWeb Review Heatmap if you have it, since both would draw a heatmap. Your settings carry over, because both versions store them in the same place.
 
 ## Usage
 
-- Tools → Review Heatmap Options… (or the options button on the heatmap) opens the settings.
+- Tools → Heatmap Continued Options… (or the options button on the heatmap) opens the settings.
 - Shift-click the options button to cycle palettes, shift-click the today button to switch between the yearly overview and the continuous timeline.
 - Shift-click Stats in Anki's toolbar to open the legacy statistics window, which includes the heatmap. The new statistics screen offers no way for add-ons to add content.
 - Hover over a cell for the count; click a cell to see those cards in the browser.
@@ -72,7 +72,7 @@ npm run typecheck           # strict type check of web/
 npm run build               # bundle web/ into src/review_heatmap/web/anki-review-heatmap.js
 uv run pytest               # unit, DST and headless GUI tests
 tests/run_matrix.sh         # the same against Anki 25.09 and 26.09
-uv run build.py build       # dist/review-heatmap-<version>.ankiaddon
+uv run build.py build       # dist/heatmap-continued-<version>.ankiaddon
 uv run build.py link        # symlink the add-on into your Anki add-ons folder
 ```
 

@@ -31,7 +31,7 @@
 # not the original program; see README.md for the list of changes.
 
 """
-Review Heatmap: visualises past and future review activity as a calendar
+Heatmap Continued: visualises past and future review activity as a calendar
 heatmap on Anki's deck browser, deck overview and legacy statistics screens.
 """
 

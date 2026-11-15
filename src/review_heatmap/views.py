@@ -160,5 +160,5 @@ class ViewManager:
             )
         except Exception:
             # Never take Anki's screens down with us
-            logger.exception("Review Heatmap failed to render %s", view.name)
+            logger.exception("Heatmap Continued failed to render %s", view.name)
             return ""

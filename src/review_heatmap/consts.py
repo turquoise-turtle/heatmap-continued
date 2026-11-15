@@ -38,7 +38,10 @@ from ._version import __version__
 
 
 class ADDON:
-    NAME = "Review Heatmap"
+    # "Review Heatmap" is reserved by the licence's additional terms (section
+    # 1), so the fork has its own name; the original's name appears only in
+    # the required attribution and legal notices.
+    NAME = "Heatmap Continued"
     MODULE = "review_heatmap"
     VERSION = __version__
     LICENSE = "GNU AGPLv3 with additional terms"

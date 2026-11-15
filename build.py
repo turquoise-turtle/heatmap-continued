@@ -3,7 +3,7 @@
 # requires-python = ">=3.10"
 # ///
 """
-Build and development helper for the Review Heatmap add-on.
+Build and development helper for the Heatmap Continued add-on.
 
     uv run build.py build            # bundle the web code and create dist/*.ankiaddon
     uv run build.py link [ADDONS]    # symlink src/review_heatmap into an Anki add-ons folder
@@ -41,7 +41,7 @@ def version() -> str:
 def manifest() -> dict:
     return {
         "package": "review_heatmap",
-        "name": "Review Heatmap (modernised fork)",
+        "name": "Heatmap Continued",
         "human_version": version(),
         "mod": int(time.time()),
         "min_point_version": MIN_POINT_VERSION,
@@ -62,7 +62,7 @@ def build_web() -> None:
 def build_package() -> Path:
     build_web()
     DIST.mkdir(exist_ok=True)
-    target = DIST / f"review-heatmap-{version()}.ankiaddon"
+    target = DIST / f"heatmap-continued-{version()}.ankiaddon"
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(SRC.rglob("*")):
             if any(part in EXCLUDED_DIRS for part in path.relative_to(SRC).parts):

@@ -2,7 +2,7 @@
 
 ## 2.0.0 - 2026-11-15
 
-First release of this fork, based on upstream Review Heatmap 1.0.1 (2022-05-24). Made with the help of Claude.
+First release of Heatmap Continued, a fork of Review Heatmap 1.0.1 (2022-05-24) by Glutanimate. It has its own name because the original's licence reserves "Review Heatmap". Made with the help of Claude.
 
 ### Added
 

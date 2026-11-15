@@ -365,7 +365,7 @@ class OptionsDialog(QDialog):
     # Actions
 
     def _restore_defaults(self) -> None:
-        if not askUser("Restore all Review Heatmap settings to their defaults?", parent=self):
+        if not askUser("Restore all Heatmap Continued settings to their defaults?", parent=self):
             return
         self.config.restore_defaults()
         self._load()
@@ -423,7 +423,7 @@ class OptionsIntegration:
 
     def register(self) -> None:
         self._mw.addonManager.setConfigAction(ADDON.MODULE, self.open)
-        action = QAction("Review &Heatmap Options...", self._mw)
+        action = QAction("&Heatmap Continued Options…", self._mw)
         action.triggered.connect(lambda _checked=False: self.open())
         self._mw.form.menuTools.addAction(action)
 
